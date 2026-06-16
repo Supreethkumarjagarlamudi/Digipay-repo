@@ -158,26 +158,29 @@ extension ProfileView {
                 "Account"
             )
 
-            ProfileRow(
-                icon:
-                    "person.crop.circle.fill",
-                title:
-                    "Edit Profile"
-            )
+            NavigationLink(destination: EditProfileView().environmentObject(session)) {
+                ProfileRow(
+                    icon: "person.crop.circle.fill",
+                    title: "Edit Profile"
+                )
+            }
+            .buttonStyle(.plain)
 
-            ProfileRow(
-                icon:
-                    "lock.shield.fill",
-                title:
-                    "Privacy & Security"
-            )
+            NavigationLink(destination: PrivacySecurityView()) {
+                ProfileRow(
+                    icon: "lock.shield.fill",
+                    title: "Privacy & Security"
+                )
+            }
+            .buttonStyle(.plain)
 
-            ProfileRow(
-                icon:
-                    "bell.badge.fill",
-                title:
-                    "Notifications"
-            )
+            NavigationLink(destination: NotificationsSubView()) {
+                ProfileRow(
+                    icon: "bell.badge.fill",
+                    title: "Notifications"
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -197,19 +200,21 @@ extension ProfileView {
                 "Support"
             )
 
-            ProfileRow(
-                icon:
-                    "questionmark.circle.fill",
-                title:
-                    "Help & Support"
-            )
+            NavigationLink(destination: HelpSupportView()) {
+                ProfileRow(
+                    icon: "questionmark.circle.fill",
+                    title: "Help & Support"
+                )
+            }
+            .buttonStyle(.plain)
 
-            ProfileRow(
-                icon:
-                    "envelope.fill",
-                title:
-                    "Contact Us"
-            )
+            NavigationLink(destination: ContactUsView()) {
+                ProfileRow(
+                    icon: "envelope.fill",
+                    title: "Contact Us"
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -229,10 +234,10 @@ extension ProfileView {
                 "App Information"
             )
 
-            Button {
-
-            } label: {
-
+            NavigationLink(destination: GenericInfoView(
+                title: "Terms & Conditions",
+                contentText: "DIGIPAY Terms and Conditions specify rules for utilizing the contextual payment system. By scanning UPI codes or configuring telemetry location parameters, you consent to secure HMAC validation of location coordinates for the purpose of identifying nearby merchants and enabling context-sensitive peer-to-peer wallet transfers."
+            )) {
                 ProfileRow(
                     icon: "doc.text.fill",
                     title: "Terms & Conditions"
@@ -240,11 +245,10 @@ extension ProfileView {
             }
             .buttonStyle(.plain)
 
-
-            Button {
-
-            } label: {
-
+            NavigationLink(destination: GenericInfoView(
+                title: "Privacy Policy",
+                contentText: "Our Privacy Policy describes how we secure your altitude, speed, and GPS coordinates. Telemetry location metrics are solely processed to map nearby registered merchants and verify that transactions originate within legitimate merchant bounds. Personal details are never exposed to external or unencrypted redirect links."
+            )) {
                 ProfileRow(
                     icon: "shield.fill",
                     title: "Privacy Policy"
@@ -252,10 +256,10 @@ extension ProfileView {
             }
             .buttonStyle(.plain)
 
-            Button {
-
-            } label: {
-
+            NavigationLink(destination: GenericInfoView(
+                title: "About DIGIPAY",
+                contentText: "DIGIPAY is a state-of-the-art secure contextual payment platform. It simplifies merchant discovery and payment routing by scanning context attributes on-device, offering a frictionless single-tap payment experience for customers and store owners alike."
+            )) {
                 ProfileRow(
                     icon: "info.circle.fill",
                     title: "About DIGIPAY"

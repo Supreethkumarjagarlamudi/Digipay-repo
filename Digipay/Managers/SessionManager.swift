@@ -93,6 +93,7 @@ final class SessionManager: ObservableObject {
         self.fullName = fullName
         self.role = role
         self.profileCompleted = true
+        self.isLoggedIn = true
         
         UserDefaults.standard.set(fullName, forKey: "fullName")
         UserDefaults.standard.set(role.rawValue, forKey: "userRole")

@@ -49,4 +49,34 @@ final class UserService {
             )
         }
     }
+
+    func fetchProfile() async throws -> User {
+        guard let url = URL(string: Endpoints.userProfile) else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+
+        if let token = UserDefaults.standard.string(forKey: "accessToken") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        if !(200...299).contains(httpResponse.statusCode) {
+            throw NSError(
+                domain: "",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to fetch profile"]
+            )
+        }
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(User.self, from: data)
+    }
 }
