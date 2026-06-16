@@ -2,6 +2,7 @@
 conftest.py — Shared fixtures for Digipay E2E + API test suite.
 """
 
+import os
 import time
 import pytest
 import requests
@@ -13,12 +14,20 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
 # ─────────────────────────────────────────────
-# URLs (overridable via pytest --base-url / env)
+# URLs — read from env vars first (set by GitHub Actions workflow)
+# then fall back to hardcoded defaults.
 # ─────────────────────────────────────────────
-FRONTEND_URL = "https://harishbalaji826-ops.github.io/digipay-web"
-BACKEND_URL  = "https://web-production-86613.up.railway.app"
+FRONTEND_URL = os.environ.get(
+    "FRONTEND_URL",
+    "https://harishbalaji826-ops.github.io/digipay-web"
+).rstrip("/")
 
-ADMIN_PHONE  = "9999999999"
+BACKEND_URL = os.environ.get(
+    "BACKEND_URL",
+    "https://web-production-86613.up.railway.app"
+).rstrip("/")
+
+ADMIN_PHONE = "9999999999"
 
 
 # ─────────────────────────────────────────────

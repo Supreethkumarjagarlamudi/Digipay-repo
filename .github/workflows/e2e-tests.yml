@@ -7,6 +7,9 @@ on:
     branches: ["**"]          # Run on every PR
   workflow_dispatch:           # Allow manual trigger from GitHub Actions UI
 
+# Wait for deploy-pages to finish before running E2E tests on main pushes
+# (on PRs this is skipped since Pages only deploys on main)
+
 jobs:
   e2e-tests:
     name: "Run E2E Tests & Generate Report"
@@ -45,8 +48,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r tests/requirements-test.txt
-          # Ensure chromedriver matches installed Chrome
-          pip install webdriver-manager
 
       # ──────────────────────────────────────────────────────────────
       # 5. Wait for Railway backend to be ready (handles cold starts)
@@ -56,8 +57,8 @@ jobs:
           echo "Waiting for backend at https://web-production-86613.up.railway.app ..."
           max_attempts=18
           attempt=0
-          until curl --silent --max-time 10 --output /dev/null \
-                "https://web-production-86613.up.railway.app/"; do
+          until curl --silent --fail --max-time 10 \
+                "https://web-production-86613.up.railway.app/" > /dev/null 2>&1; do
             attempt=$((attempt + 1))
             if [ "$attempt" -ge "$max_attempts" ]; then
               echo "⚠️  Backend did not respond after $((max_attempts * 10))s — continuing anyway."
@@ -70,14 +71,15 @@ jobs:
 
       # ──────────────────────────────────────────────────────────────
       # 6. Wait for GitHub Pages frontend to be ready
+      #    URL: https://harishbalaji826-ops.github.io/digipay-web/
       # ──────────────────────────────────────────────────────────────
       - name: "⏳ Wait for GitHub Pages Frontend"
         run: |
-          echo "Waiting for frontend at https://harishbalaji826-ops.github.io/digipay-web ..."
+          echo "Waiting for frontend at https://harishbalaji826-ops.github.io/digipay-web/ ..."
           max_attempts=12
           attempt=0
-          until curl --silent --max-time 15 --output /dev/null \
-                "https://harishbalaji826-ops.github.io/digipay-web"; do
+          until curl --silent --fail --max-time 15 \
+                "https://harishbalaji826-ops.github.io/digipay-web/" > /dev/null 2>&1; do
             attempt=$((attempt + 1))
             if [ "$attempt" -ge "$max_attempts" ]; then
               echo "⚠️  Frontend did not respond after $((max_attempts * 10))s — continuing anyway."
@@ -97,8 +99,11 @@ jobs:
         env:
           PYTHONPATH: "."
           DISPLAY: ":99"
+          # Override URLs via env so tests pick them up
+          FRONTEND_URL: "https://harishbalaji826-ops.github.io/digipay-web"
+          BACKEND_URL:  "https://web-production-86613.up.railway.app"
         run: |
-          # Start virtual display for headless Chrome
+          # Start virtual display for headless Chrome on Linux
           Xvfb :99 -screen 0 1920x1080x24 &
           sleep 2
 
@@ -116,7 +121,7 @@ jobs:
             --tb=short \
             --timeout=60 \
             -p no:warnings \
-          || true   # Don't fail the step — we handle failure in report
+          || true   # Don't fail this step — report always generates
 
       # ──────────────────────────────────────────────────────────────
       # 8. Generate the XLSX report
@@ -124,19 +129,24 @@ jobs:
       - name: "📊 Generate XLSX Test Report"
         id: generate_report
         working-directory: tests/e2e
+        if: always()
         run: |
+          if [ ! -f results.json ]; then
+            echo "⚠️  results.json not found — creating empty placeholder."
+            echo '{"tests":[],"duration":0}' > results.json
+          fi
+
           python report_generator.py \
             --input results.json \
             --output-dir ../../test-reports
 
-          # Export the filename for later steps
-          REPORT_FILE=$(ls ../../test-reports/E2E_Test_Report_Digipay_*.xlsx | head -1)
-          echo "REPORT_PATH=$REPORT_FILE" >> "$GITHUB_ENV"
-          echo "Report generated: $REPORT_FILE"
+          REPORT_FILE=$(ls ../../test-reports/E2E_Test_Report_Digipay_*.xlsx 2>/dev/null | head -1)
+          echo "REPORT_PATH=${REPORT_FILE}" >> "$GITHUB_ENV"
+          echo "✅ Report generated: ${REPORT_FILE}"
 
       # ──────────────────────────────────────────────────────────────
       # 9. Post test summary to GitHub Actions Job Summary
-      #    (visible directly in the Actions tab — no download needed)
+      #    Visible directly in the Actions tab — no download needed
       # ──────────────────────────────────────────────────────────────
       - name: "📋 Post Test Summary to GitHub"
         working-directory: tests/e2e
@@ -144,6 +154,7 @@ jobs:
         run: |
           python3 - <<'PYEOF'
           import json, os, sys
+          from collections import defaultdict
 
           results_path = "results.json"
           if not os.path.exists(results_path):
@@ -162,43 +173,45 @@ jobs:
           run_time = report.get("duration", 0)
           pass_rate = (passed / total * 100) if total > 0 else 0
 
-          badge = "✅" if failed == 0 else "❌"
+          badge = "✅" if (failed == 0 and total > 0) else "❌"
 
           summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/stdout")
           with open(summary_path, "w") as out:
-              out.write(f"# {badge} Digipay E2E Test Report\n\n")
-              out.write(f"> **Run Time:** {run_time:.2f}s &nbsp;|&nbsp; ")
+              out.write(f"# {badge} Digipay — E2E Test Report\n\n")
+              out.write(f"> **Branch:** `{os.environ.get('GITHUB_REF_NAME','unknown')}` &nbsp;|&nbsp; ")
+              out.write(f"**Run:** #{os.environ.get('GITHUB_RUN_NUMBER','?')} &nbsp;|&nbsp; ")
+              out.write(f"**Duration:** {run_time:.2f}s &nbsp;|&nbsp; ")
               out.write(f"**Pass Rate:** {pass_rate:.1f}%\n\n")
 
-              # KPI table
+              # ── KPI table ──────────────────────────────────────────
               out.write("## 📊 Test Run Summary\n\n")
               out.write("| Metric | Value |\n")
               out.write("|--------|-------|\n")
-              out.write(f"| 🔢 Total Tests | **{total}** |\n")
-              out.write(f"| ✅ Passed | **{passed}** |\n")
-              out.write(f"| ❌ Failed | **{failed}** |\n")
-              if errors: out.write(f"| 💥 Errors | **{errors}** |\n")
-              if skipped: out.write(f"| ⏭ Skipped | **{skipped}** |\n")
-              out.write(f"| 📊 Pass Rate | **{pass_rate:.1f}%** |\n")
-              out.write(f"| ⏱ Duration | **{run_time:.2f}s** |\n\n")
+              out.write(f"| 🔢 Total Tests   | **{total}** |\n")
+              out.write(f"| ✅ Passed        | **{passed}** |\n")
+              out.write(f"| ❌ Failed        | **{failed}** |\n")
+              if errors:  out.write(f"| 💥 Errors        | **{errors}** |\n")
+              if skipped: out.write(f"| ⏭ Skipped        | **{skipped}** |\n")
+              out.write(f"| 📊 Pass Rate     | **{pass_rate:.1f}%** |\n")
+              out.write(f"| ⏱ Total Duration | **{run_time:.2f}s** |\n\n")
 
-              # Category breakdown table
-              from collections import defaultdict
+              # ── Category breakdown ─────────────────────────────────
               categories = defaultdict(lambda: {"passed": 0, "failed": 0, "total": 0})
               for t in tests:
                   node_id = t.get("nodeid", "")
                   lower   = node_id.lower()
-                  if "landing"   in lower: cat = "Landing Page"
-                  elif "login"   in lower: cat = "Login Portal"
-                  elif "dashboard" in lower: cat = "Dashboard Portal"
-                  elif "api_unit" in lower or "api" in lower:
-                      if "auth" in lower:   cat = "Authentication API"
-                      elif "wallet" in lower: cat = "Wallet API"
-                      elif "admin" in lower:  cat = "Admin API"
-                      elif "merchant" in lower: cat = "Merchant API"
-                      else: cat = "API Health"
-                  elif "security" in lower: cat = "Security"
-                  else: cat = "General"
+                  if   "landing"   in lower: cat = "🏠 Landing Page"
+                  elif "login"     in lower: cat = "🔐 Login Portal"
+                  elif "dashboard" in lower: cat = "📊 Dashboard Portal"
+                  elif "api_unit"  in lower:
+                      if   "testbackendhealth"    in lower or "root" in lower: cat = "🟢 API Health"
+                      elif "testauthendpoints"    in lower or "auth" in lower: cat = "🔑 Authentication API"
+                      elif "testwalletendpoints"  in lower or "wallet" in lower: cat = "💳 Wallet API"
+                      elif "testadminendpoints"   in lower or "admin" in lower: cat = "🛡 Admin API"
+                      elif "testmerchantendpoints" in lower or "merchant" in lower: cat = "🏪 Merchant API"
+                      else: cat = "⚙️ API Tests"
+                  elif "security"  in lower: cat = "🔒 Security Tests"
+                  else: cat = "📁 General"
 
                   outcome = t.get("outcome", "unknown")
                   categories[cat]["total"] += 1
@@ -209,32 +222,45 @@ jobs:
 
               out.write("## 📂 Results by Category\n\n")
               out.write("| Category | Total | ✅ Passed | ❌ Failed | Status |\n")
-              out.write("|----------|-------|----------|----------|--------|\n")
+              out.write("|----------|------:|----------:|----------:|--------|\n")
               for cat, c in sorted(categories.items()):
-                  status_icon = "✅ All Pass" if c["failed"] == 0 else f"❌ {c['failed']} Failed"
-                  out.write(f"| {cat} | {c['total']} | {c['passed']} | {c['failed']} | {status_icon} |\n")
+                  status = "✅ All Pass" if c["failed"] == 0 else f"❌ {c['failed']} Failed"
+                  out.write(f"| {cat} | {c['total']} | {c['passed']} | {c['failed']} | {status} |\n")
               out.write("\n")
 
-              # Failed tests list
+              # ── Failed tests detail ────────────────────────────────
               failed_tests = [t for t in tests if t.get("outcome") != "passed"]
               if failed_tests:
                   out.write("## ❌ Failed Tests\n\n")
-                  out.write("| # | Test Name | Error (truncated) |\n")
-                  out.write("|---|-----------|-------------------|\n")
+                  out.write("| # | Category | Test Name | Error |\n")
+                  out.write("|---|----------|-----------|-------|\n")
                   for i, t in enumerate(failed_tests, 1):
-                      name  = t.get("nodeid", "").split("::")[-1]
-                      call  = t.get("call", {})
-                      longrepr = str(call.get("longrepr", "No details"))[:120].replace("\n", " ").replace("|", "\\|")
-                      out.write(f"| {i} | `{name}` | {longrepr} |\n")
+                      node_id = t.get("nodeid", "")
+                      name = node_id.split("::")[-1]
+                      call = t.get("call", {})
+                      longrepr = str(call.get("longrepr", "No details"))
+                      # Take first meaningful line
+                      first_line = next((ln.strip() for ln in longrepr.split("\n")
+                                         if ln.strip() and not ln.strip().startswith("+")), longrepr[:120])
+                      first_line = first_line[:120].replace("|", "\\|")
+                      # derive category
+                      lower = node_id.lower()
+                      if   "landing"   in lower: cat = "Landing Page"
+                      elif "login"     in lower: cat = "Login"
+                      elif "dashboard" in lower: cat = "Dashboard"
+                      elif "api_unit"  in lower: cat = "API Unit"
+                      elif "security"  in lower: cat = "Security"
+                      else: cat = "General"
+                      out.write(f"| {i} | {cat} | `{name}` | {first_line} |\n")
                   out.write("\n")
               else:
                   out.write("## 🎉 All Tests Passed!\n\n")
-                  out.write("No failures detected in this run.\n\n")
+                  out.write("> No failures detected in this run. Great job! 🚀\n\n")
 
               out.write("---\n")
-              out.write("_📁 Download the full `.xlsx` report from the **Artifacts** section below._\n")
+              out.write("_📁 Download the full `.xlsx` report from the **Artifacts** section below this summary._\n")
 
-          print("GitHub Actions job summary written successfully.")
+          print("✅ GitHub Actions job summary written successfully.")
           PYEOF
 
       # ──────────────────────────────────────────────────────────────
@@ -250,7 +276,7 @@ jobs:
           if-no-files-found: warn
 
       # ──────────────────────────────────────────────────────────────
-      # 11. Upload the raw JSON results too (useful for debugging)
+      # 11. Upload the raw JSON results (useful for debugging)
       # ──────────────────────────────────────────────────────────────
       - name: "📤 Upload Raw JSON Results"
         uses: actions/upload-artifact@v4
@@ -262,9 +288,9 @@ jobs:
           if-no-files-found: warn
 
       # ──────────────────────────────────────────────────────────────
-      # 12. Fail the job if any tests failed (after reporting)
+      # 12. Fail the job if any tests failed (after all reporting done)
       # ──────────────────────────────────────────────────────────────
-      - name: "🚦 Check Test Results"
+      - name: "🚦 Check Final Test Results"
         working-directory: tests/e2e
         if: always()
         run: |
@@ -285,9 +311,8 @@ jobs:
           passed = sum(1 for t in tests if t.get("outcome") == "passed")
 
           print(f"Final result: {passed}/{total} tests passed, {failed} failed.")
-
           if failed > 0:
-              print(f"❌ {failed} test(s) failed. See summary above and download the XLSX for details.")
+              print(f"❌ {failed} test(s) failed. Download the XLSX artifact for full details.")
               sys.exit(1)
           else:
               print("✅ All tests passed!")
