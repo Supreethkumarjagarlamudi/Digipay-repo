@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import LoginPortal from './pages/LoginPortal';
 import DashboardPortal from './pages/DashboardPortal';
-import axios from 'axios';
-
-const BASE_URL = 'http://127.0.0.1:8000';
+import { fetchUserProfile } from './services/api';
 
 export default function App() {
   const [page, setPage] = useState('loading'); // 'loading' | 'landing' | 'login' | 'dashboard'
@@ -22,16 +20,12 @@ export default function App() {
       }
 
       try {
-        // Fetch current profile directly using token
-        const res = await axios.get(`${BASE_URL}/user/me`, {
-          headers: {
-            Authorization: `Bearer ${savedToken}`
-          }
-        });
+        // Fetch current profile directly using our api service client
+        const data = await fetchUserProfile();
         
         setToken(savedToken);
-        setRole(res.data.role || 'customer');
-        setName(res.data.full_name || (res.data.role === 'admin' ? 'Global Administrator' : 'Merchant Store'));
+        setRole(data.role || 'customer');
+        setName(data.full_name || (data.role === 'admin' ? 'Global Administrator' : 'Merchant Store'));
         setPage('dashboard');
       } catch (err) {
         // Token invalid or expired
