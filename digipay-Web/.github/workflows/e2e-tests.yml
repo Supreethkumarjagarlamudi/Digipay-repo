@@ -36,7 +36,7 @@ jobs:
 
     env:
       DIGIPAY_BASE_URL: ${{ github.event.inputs.target_url || 'https://harishbalaji826-ops.github.io/digipay-Web/' }}
-      DIGIPAY_BACKEND_URL: ${{ secrets.DIGIPAY_BACKEND_URL || 'https://digipay-backend.up.railway.app' }}
+      DIGIPAY_BACKEND_URL: ${{ secrets.DIGIPAY_BACKEND_URL || 'https://web-production-86613.up.railway.app' }}
       ADMIN_PHONE: "9999999999"
       SELENIUM_TIMEOUT: "20"
 
@@ -73,8 +73,7 @@ jobs:
             sudo apt-get install -y google-chrome-stable
           fi
           google-chrome --version
-          # Also confirm ChromeDriver will be managed by webdriver-manager
-          python -c "from webdriver_manager.chrome import ChromeDriverManager; print('webdriver-manager OK')"
+          echo "Google Chrome is ready for Selenium tests!"
 
       # ── 5. Create output directories ──────────────────────────────────────
       - name: "📁 Create output directories"
