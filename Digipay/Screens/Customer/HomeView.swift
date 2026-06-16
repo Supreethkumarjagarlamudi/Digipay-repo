@@ -7,15 +7,26 @@ struct HomeView: View {
 
     @State private var showAllMerchants = false
     @StateObject
-    private var locationManager =
-    CustomerLocationManager()
+    private var locationManager = CustomerLocationManager()
+    
+    @State private var selectedCategory: String? = nil
 
     private let categories = [
         "Cafe",
         "Restaurant",
         "Medical",
-        "Grocery"
+        "Grocery",
+        "Retail",
+        "Shopping",
+        "Other"
     ]
+    
+    private var filteredMerchants: [NearbyMerchant] {
+        if let category = selectedCategory {
+            return homeVM.merchants.filter { $0.category.lowercased() == category.lowercased() }
+        }
+        return homeVM.merchants
+    }
 
     var body: some View {
 
@@ -42,8 +53,7 @@ struct HomeView: View {
                             .padding(.top)
                     }
 
-                    if let merchant =
-                        homeVM.merchants.first {
+                    if let merchant = filteredMerchants.first {
 
                         NavigationLink {
 
@@ -58,6 +68,18 @@ struct HomeView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                    } else if selectedCategory != nil {
+                        VStack(spacing: 12) {
+                            Image(systemName: "storefront.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(AppColors.secondaryText)
+                            
+                            Text("No merchants nearby in \(selectedCategory ?? "")")
+                                .font(.subheadline)
+                                .foregroundColor(AppColors.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
                     }
 
                     categorySection
@@ -251,24 +273,24 @@ extension HomeView {
                         id: \.self
                     ) { category in
 
-                        Text(category)
-                            .fontWeight(.medium)
-
-                            .padding(
-                                .horizontal,
-                                18
-                            )
-
-                            .padding(
-                                .vertical,
-                                10
-                            )
-
-                            .background(
-                                AppColors.cardBackground
-                            )
-
-                            .cornerRadius(16)
+                        Button {
+                            withAnimation(.spring()) {
+                                if selectedCategory == category {
+                                    selectedCategory = nil
+                                } else {
+                                    selectedCategory = category
+                                }
+                            }
+                        } label: {
+                            Text(category)
+                                .fontWeight(.medium)
+                                .foregroundColor(selectedCategory == category ? .white : AppColors.primaryText)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 10)
+                                .background(selectedCategory == category ? AppColors.primaryBlue : AppColors.cardBackground)
+                                .cornerRadius(16)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal)
@@ -323,7 +345,7 @@ extension HomeView {
 
             ForEach(
                 Array(
-                    homeVM.merchants.dropFirst()
+                    filteredMerchants.dropFirst()
                 )
             ) { merchant in
 
