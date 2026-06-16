@@ -1,4 +1,0 @@
-# Test output artifacts (generated locally)
-test-reports/
-tests/e2e/results.json
-*.xlsx

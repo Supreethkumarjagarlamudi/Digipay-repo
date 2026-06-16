@@ -1,8 +1,12 @@
-//
-//  AppState.swift
-//  Digipay
-//
-//  Created by Supreeth kumar jagarlamudi on 29/05/26.
-//
+import SwiftUI
+import Combine
 
-import Foundation
+@MainActor
+final class AppState: ObservableObject {
+
+    @AppStorage("hasSeenOnboarding")
+    var hasSeenOnboarding = false
+
+    @AppStorage("isLoggedIn")
+    var isLoggedIn = false
+}

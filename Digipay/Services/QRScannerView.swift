@@ -1,8 +1,26 @@
-//
-//  QRScannerView.swift
-//  Digipay
-//
-//  Created by Supreeth kumar jagarlamudi on 04/06/26.
-//
+import SwiftUI
+import AVFoundation
 
-import Foundation
+struct QRScannerView: UIViewControllerRepresentable {
+
+    @Binding var scannedCode: String
+
+    func makeUIViewController(
+        context: Context
+    ) -> ScannerViewController {
+
+        let vc = ScannerViewController()
+
+        vc.onCodeScanned = { code in
+
+            scannedCode = code
+        }
+
+        return vc
+    }
+
+    func updateUIViewController(
+        _ uiViewController: ScannerViewController,
+        context: Context
+    ) {}
+}

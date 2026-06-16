@@ -1,0 +1,52 @@
+import Foundation
+
+final class UserService {
+    static let shared = UserService()
+    private init() {}
+
+    func updateProfile(fullName: String, email: String?, role: String) async throws {
+        guard let url = URL(string: Endpoints.updateProfile) else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = UserDefaults.standard.string(forKey: "accessToken") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        var body: [String: String] = [
+            "full_name": fullName
+        ]
+        if let email = email, !email.isEmpty {
+            body["email"] = email
+        }
+        body["role"] = role
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        if !(200...299).contains(httpResponse.statusCode) {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = json["detail"] as? String {
+                throw NSError(
+                    domain: "",
+                    code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: detail]
+                )
+            }
+            throw NSError(
+                domain: "",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to update profile"]
+            )
+        }
+    }
+}

@@ -1,8 +1,36 @@
-//
-//  ContextChips.swift
-//  Digipay
-//
-//  Created by Supreeth kumar jagarlamudi on 04/06/26.
-//
+import SwiftUI
 
-import Foundation
+struct ContextChip: View {
+
+    let title: String
+    let value: String
+
+    var body: some View {
+
+        VStack(
+            spacing: 8
+        ) {
+
+            Text(title)
+                .font(.caption)
+                .foregroundColor(
+                    AppColors.secondaryText
+                )
+
+            Text(value)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(
+                    AppColors.primaryText
+                )
+        }
+        .frame(
+            maxWidth: .infinity
+        )
+        .padding()
+        .background(
+            AppColors.cardBackground
+        )
+        .cornerRadius(20)
+    }
+}

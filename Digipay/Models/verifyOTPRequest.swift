@@ -1,8 +1,7 @@
-//
-//  verifyOTPRequest.swift
-//  Digipay
-//
-//  Created by Supreeth kumar jagarlamudi on 30/05/26.
-//
-
 import Foundation
+
+struct VerifyOTPRequest: Codable {
+
+    let phone_number: String
+    let otp_code: String
+}

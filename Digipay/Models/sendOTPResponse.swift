@@ -1,8 +1,8 @@
-//
-//  sendOTPResponse.swift
-//  Digipay
-//
-//  Created by Supreeth kumar jagarlamudi on 30/05/26.
-//
 
 import Foundation
+
+struct SendOTPResponse: Codable {
+
+    let message: String
+    let otp: String
+}

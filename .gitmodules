@@ -1,0 +1,3 @@
+[submodule "digipay-Backend"]
+	path = digipay-Backend
+	url = https://github.com/Supreethkumarjagarlamudi/digipay-backend.git

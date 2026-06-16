@@ -1,8 +1,32 @@
-//
-//  UPIManager.swift
-//  Digipay
-//
-//  Created by Supreeth kumar jagarlamudi on 04/06/26.
-//
+import UIKit
 
-import Foundation
+final class UPIManager {
+
+    static let shared = UPIManager()
+
+    private init() {}
+
+    func openUPILink(
+        deepLink: String
+    ) {
+
+        guard let url = URL(
+            string: deepLink
+        ) else {
+
+            print("Invalid UPI URL")
+            return
+        }
+
+        UIApplication.shared.open(
+            url,
+            options: [:]
+        ) { success in
+
+            print(
+                "UPI Open Success:",
+                success
+            )
+        }
+    }
+}
