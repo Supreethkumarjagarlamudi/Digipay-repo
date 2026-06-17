@@ -1,0 +1,350 @@
+name: 🍎 Digipay iOS — Appium E2E Tests
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+    paths:
+      - "AppiumTests/**"
+      - "Digipay/**"
+      - ".github/workflows/appium-tests.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "AppiumTests/**"
+      - "Digipay/**"
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: "Which test suite to run"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - auth
+          - home
+          - wallet
+          - payment
+          - profile
+          - navigation
+          - validation
+          - ui
+          - regression
+      ios_version:
+        description: "iOS Simulator version"
+        required: false
+        default: "17.0"
+      device_name:
+        description: "Simulator device name"
+        required: false
+        default: "iPhone 15"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Environment defaults
+# ──────────────────────────────────────────────────────────────────────────────
+env:
+  APPIUM_VERSION:   "2.4.1"
+  XCUITEST_DRIVER: "4.35.0"
+  PYTHON_VERSION:  "3.12"
+  NODE_VERSION:    "20"
+  IOS_VERSION:     ${{ github.event.inputs.ios_version || '17.0' }}
+  IOS_DEVICE_NAME: ${{ github.event.inputs.device_name || 'iPhone 15' }}
+  APP_BUNDLE_ID:   "com.supreeth.Digipay"
+  APPIUM_HOST:     "http://127.0.0.1"
+  APPIUM_PORT:     "4723"
+  REPORTS_DIR:     "AppiumTests/reports"
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  build-app:
+    name: 🏗️ Build iOS App (Simulator)
+    runs-on: macos-15
+    outputs:
+      app-path: ${{ steps.build.outputs.app-path }}
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 🔧 Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+
+      - name: 📦 Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('**/*.xcodeproj/**', '**/*.swift') }}
+          restore-keys: ${{ runner.os }}-deriveddata-
+
+      - name: 🏗️ Build for Simulator
+        id: build
+        run: |
+          DERIVED_DIR=$HOME/Library/Developer/Xcode/DerivedData
+          xcodebuild build \
+            -project Digipay.xcodeproj \
+            -scheme Digipay \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=${{ env.IOS_DEVICE_NAME }},OS=${{ env.IOS_VERSION }}" \
+            -derivedDataPath "$DERIVED_DIR" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty || true
+          
+          APP_PATH=$(find "$DERIVED_DIR" -name "Digipay.app" -path "*/iphonesimulator*" | head -1)
+          echo "app-path=${APP_PATH}" >> "$GITHUB_OUTPUT"
+          echo "✅ App built at: ${APP_PATH}"
+
+      - name: 📤 Upload .app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digipay-simulator-app
+          path: ~/Library/Developer/Xcode/DerivedData/**/Build/Products/Debug-iphonesimulator/Digipay.app
+          retention-days: 1
+
+  # ────────────────────────────────────────────────────────────────────────────
+  appium-tests:
+    name: 🧪 Run Appium Tests — ${{ matrix.suite }}
+    runs-on: macos-15
+    needs: build-app
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - auth
+          - home
+          - wallet
+          - payment
+          - profile
+          - navigation
+          - validation
+          - ui
+          - regression
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+
+      # ── Node.js + Appium Server ─────────────────────────────────────────────
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: 📦 Cache Appium
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-appium-${{ env.APPIUM_VERSION }}-xcuitest-${{ env.XCUITEST_DRIVER }}
+          restore-keys: ${{ runner.os }}-appium-
+
+      - name: 📲 Install Appium + XCUITest driver
+        run: |
+          npm install -g appium@${{ env.APPIUM_VERSION }}
+          appium driver install xcuitest@${{ env.XCUITEST_DRIVER }}
+          echo "✅ Appium $(appium --version) installed"
+
+      # ── Python + Dependencies ───────────────────────────────────────────────
+      - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: AppiumTests/requirements.txt
+
+      - name: 📦 Install Python dependencies
+        working-directory: AppiumTests
+        run: pip install -r requirements.txt
+
+      # ── iOS Simulator ───────────────────────────────────────────────────────
+      - name: 📱 Boot iOS Simulator
+        run: |
+          UDID=$(xcrun simctl list devices available | grep "${{ env.IOS_DEVICE_NAME }}" | grep "${{ env.IOS_VERSION }}" | head -1 | sed 's/.*(\([^)]*\)).*/\1/')
+          if [ -z "$UDID" ]; then
+            echo "Creating simulator..."
+            UDID=$(xcrun simctl create "TestDevice_${{ env.IOS_DEVICE_NAME }}" \
+              "com.apple.CoreSimulator.SimDeviceType.iPhone-15" \
+              "com.apple.CoreSimulator.SimRuntime.iOS-17-0")
+          fi
+          echo "SIMULATOR_UDID=${UDID}" >> $GITHUB_ENV
+          xcrun simctl boot "$UDID" || true
+          echo "✅ Booted simulator: $UDID"
+
+      # ── Download Built App ──────────────────────────────────────────────────
+      - name: 📥 Download app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: digipay-simulator-app
+          path: /tmp/digipay-app
+
+      - name: 📲 Install app on Simulator
+        run: |
+          APP_PATH=$(find /tmp/digipay-app -name "Digipay.app" | head -1)
+          echo "APP_PATH=${APP_PATH}" >> $GITHUB_ENV
+          xcrun simctl install "${{ env.SIMULATOR_UDID }}" "$APP_PATH"
+          echo "✅ App installed: $APP_PATH"
+
+      # ── Start Appium Server ─────────────────────────────────────────────────
+      - name: 🚀 Start Appium Server
+        run: |
+          appium --port ${{ env.APPIUM_PORT }} \
+            --log /tmp/appium.log \
+            --log-level warn &
+          echo "APPIUM_PID=$!" >> $GITHUB_ENV
+          sleep 5
+          echo "✅ Appium server running (PID: $APPIUM_PID)"
+
+      # ── Run Tests ───────────────────────────────────────────────────────────
+      - name: 🧪 Run ${{ matrix.suite }} tests
+        working-directory: AppiumTests
+        env:
+          IOS_VERSION:     ${{ env.IOS_VERSION }}
+          IOS_DEVICE_NAME: ${{ env.IOS_DEVICE_NAME }}
+          APP_BUNDLE_ID:   ${{ env.APP_BUNDLE_ID }}
+          APP_PATH:        ${{ env.APP_PATH }}
+          APPIUM_HOST:     ${{ env.APPIUM_HOST }}
+          APPIUM_PORT:     ${{ env.APPIUM_PORT }}
+        run: |
+          SUITE="${{ matrix.suite }}"
+          if [ "$SUITE" = "all" ]; then
+            TEST_PATH="tests/"
+          else
+            TEST_PATH="tests/${SUITE}/"
+          fi
+          
+          mkdir -p reports/screenshots
+          
+          python -m pytest "$TEST_PATH" \
+            -v \
+            --tb=short \
+            --color=yes \
+            -p no:warnings \
+            2>&1 | tee reports/pytest_${{ matrix.suite }}.log
+          
+          echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
+
+      # ── Stop Appium ─────────────────────────────────────────────────────────
+      - name: ⛔ Stop Appium Server
+        if: always()
+        run: kill ${{ env.APPIUM_PID }} 2>/dev/null || true
+
+      # ── Upload Reports ───────────────────────────────────────────────────────
+      - name: 📊 Upload Excel + Screenshot Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appium-report-${{ matrix.suite }}
+          path: |
+            AppiumTests/reports/
+          retention-days: 30
+
+      - name: 📋 Upload Appium Server Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appium-server-log-${{ matrix.suite }}
+          path: /tmp/appium.log
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────────────
+  merge-reports:
+    name: 📊 Merge & Publish Excel Report
+    runs-on: macos-15
+    needs: appium-tests
+    if: always()
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install openpyxl
+        run: pip install openpyxl
+
+      - name: 📥 Download all test reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: appium-report-*
+          merge-multiple: true
+          path: all-reports/
+
+      - name: 📊 Generate Merged Summary Report
+        run: |
+          python << 'EOF'
+          import os, glob, openpyxl, datetime
+          from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+          wb = openpyxl.Workbook()
+          ws = wb.active
+          ws.title = "CI Summary"
+
+          # Title
+          ws.merge_cells("A1:F1")
+          ws["A1"].value = f"DIGIPAY Appium CI Report — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M UTC')}"
+          ws["A1"].font = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
+          ws["A1"].fill = PatternFill("solid", fgColor="1E40AF")
+          ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+
+          headers = ["Suite", "Log File", "Status"]
+          for col, h in enumerate(headers, 1):
+              ws.cell(row=2, column=col, value=h).font = Font(bold=True)
+
+          logs = glob.glob("all-reports/**/*.log", recursive=True)
+          for i, log_path in enumerate(logs, 1):
+              suite = os.path.basename(log_path).replace("pytest_","").replace(".log","")
+              with open(log_path) as f:
+                  content = f.read()
+              status = "PASS" if "failed" not in content.lower() else "FAIL"
+              ws.cell(row=i+2, column=1, value=suite)
+              ws.cell(row=i+2, column=2, value=log_path)
+              ws.cell(row=i+2, column=3, value=status)
+
+          ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+          out = f"Digipay_CI_Appium_Summary_{ts}.xlsx"
+          wb.save(out)
+          print(f"✅ Summary report saved: {out}")
+          EOF
+
+      - name: 📤 Upload Merged Excel Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: digipay-appium-final-excel-report
+          path: "Digipay_CI_Appium_Summary_*.xlsx"
+          retention-days: 90
+
+      - name: 💬 Post Test Summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const logs = fs.readdirSync('all-reports').filter(f => f.endsWith('.log'));
+            let summary = '## 🍎 Digipay Appium Test Summary\n\n';
+            summary += '| Suite | Status |\n|-------|--------|\n';
+            for (const log of logs) {
+              const content = fs.readFileSync(`all-reports/${log}`, 'utf8');
+              const suite = log.replace('pytest_','').replace('.log','');
+              const status = content.includes('failed') ? '❌ FAIL' : '✅ PASS';
+              summary += `| ${suite} | ${status} |\n`;
+            }
+            summary += '\n> 📊 Excel report available in Actions artifacts';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
