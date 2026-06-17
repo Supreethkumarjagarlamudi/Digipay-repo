@@ -134,4 +134,59 @@ final class MerchantService {
 
         return try JSONDecoder().decode(MerchantDashboardResponse.self, from: data)
     }
+
+    func updateMerchant(
+        request: MerchantUpdateRequest
+    ) async throws -> MerchantUpdateResponse {
+        guard let url = URL(string: Endpoints.updateMerchant) else {
+            throw URLError(.badURL)
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PUT"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = UserDefaults.standard.string(forKey: "accessToken") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        if !(200...299).contains(httpResponse.statusCode) {
+            throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to update merchant details"])
+        }
+
+        return try JSONDecoder().decode(MerchantUpdateResponse.self, from: data)
+    }
+
+    func fetchAllPayments() async throws -> [MerchantPayment] {
+        guard let url = URL(string: Endpoints.merchantPayments) else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+
+        if let token = UserDefaults.standard.string(forKey: "accessToken") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        if !(200...299).contains(httpResponse.statusCode) {
+            throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch statements"])
+        }
+
+        return try JSONDecoder().decode([MerchantPayment].self, from: data)
+    }
 }

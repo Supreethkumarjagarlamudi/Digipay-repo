@@ -5,4 +5,6 @@ struct User: Codable {
     let full_name: String?
     let email: String?
     let profile_completed: Bool?
+    let monthly_budget: Double?
+    let monthly_income: Double?
 }

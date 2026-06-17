@@ -4,7 +4,13 @@ final class UserService {
     static let shared = UserService()
     private init() {}
 
-    func updateProfile(fullName: String, email: String?, role: String) async throws {
+    func updateProfile(
+        fullName: String,
+        email: String?,
+        role: String,
+        monthlyBudget: Double? = nil,
+        monthlyIncome: Double? = nil
+    ) async throws {
         guard let url = URL(string: Endpoints.updateProfile) else {
             throw URLError(.badURL)
         }
@@ -17,13 +23,19 @@ final class UserService {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        var body: [String: String] = [
-            "full_name": fullName
+        var body: [String: Any] = [
+            "full_name": fullName,
+            "role": role
         ]
         if let email = email, !email.isEmpty {
             body["email"] = email
         }
-        body["role"] = role
+        if let budget = monthlyBudget {
+            body["monthly_budget"] = budget
+        }
+        if let income = monthlyIncome {
+            body["monthly_income"] = income
+        }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

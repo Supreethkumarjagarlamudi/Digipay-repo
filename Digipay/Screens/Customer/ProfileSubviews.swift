@@ -1,12 +1,16 @@
 import SwiftUI
+import LocalAuthentication
+import UserNotifications
 
 // MARK: - PRIVACY & SECURITY
 
 struct PrivacySecurityView: View {
-    @State private var biometricLogin = true
-    @State private var locationServices = true
-    @State private var endToEndEncryption = true
+    @AppStorage("biometricLoginEnabled") private var biometricLogin = false
+    @AppStorage("locationServicesEnabled") private var locationServices = true
+    @AppStorage("endToEndEncryptionEnabled") private var endToEndEncryption = true
     
+    @State private var showBiometricError = false
+    @State private var biometricErrorMessage = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -59,6 +63,39 @@ struct PrivacySecurityView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .alert("Biometric Security Error", isPresented: $showBiometricError) {
+            Button("OK") {}
+        } message: {
+            Text(biometricErrorMessage)
+        }
+        .onChange(of: biometricLogin) { _, enabled in
+            if enabled {
+                let context = LAContext()
+                var error: NSError?
+                
+                if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+                    context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Confirm authentication to enable biometric security for DIGIPAY") { success, authError in
+                        DispatchQueue.main.async {
+                            if success {
+                                print("Biometrics enabled successfully")
+                            } else {
+                                biometricLogin = false
+                                if let err = authError {
+                                    biometricErrorMessage = err.localizedDescription
+                                    showBiometricError = true
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        biometricLogin = false
+                        biometricErrorMessage = error?.localizedDescription ?? "Face ID/Touch ID is not supported or configured on this device."
+                        showBiometricError = true
+                    }
+                }
+            }
+        }
     }
     
     private func customNavBar(title: String) -> some View {
@@ -90,11 +127,13 @@ struct PrivacySecurityView: View {
 // MARK: - NOTIFICATIONS
 
 struct NotificationsSubView: View {
-    @State private var pushNotifications = true
-    @State private var transactionAlerts = true
-    @State private var smsAlerts = false
-    @State private var promoAlerts = false
+    @AppStorage("pushNotificationsEnabled") private var pushNotifications = false
+    @AppStorage("transactionAlertsEnabled") private var transactionAlerts = true
+    @AppStorage("smsAlertsEnabled") private var smsAlerts = false
+    @AppStorage("promoAlertsEnabled") private var promoAlerts = false
     
+    @State private var showNotificationError = false
+    @State private var notificationErrorMessage = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -132,6 +171,42 @@ struct NotificationsSubView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .alert("Notifications Access Required", isPresented: $showNotificationError) {
+            Button("OK") {}
+        } message: {
+            Text(notificationErrorMessage)
+        }
+        .onChange(of: pushNotifications) { _, enabled in
+            if enabled {
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+                    DispatchQueue.main.async {
+                        if granted {
+                            print("Notifications authorized successfully")
+                            scheduleMockWelcomeNotification()
+                        } else {
+                            pushNotifications = false
+                            notificationErrorMessage = error?.localizedDescription ?? "Please enable notification permissions for DIGIPAY in your device System Settings."
+                            showNotificationError = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func scheduleMockWelcomeNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "🛡️ DIGIPAY Security Active"
+        content.body = "Real-time UPI budget notifications and transaction tracking are now enabled."
+        content.sound = .default
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.5, repeats: false)
+        let request = UNNotificationRequest(identifier: "welcome_notification", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let err = error {
+                print("Failed to schedule local notification: \(err)")
+            }
+        }
     }
     
     private func customNavBar(title: String) -> some View {
@@ -171,7 +246,11 @@ struct HelpSupportView: View {
         ("What is DIGIPAY?", "DIGIPAY is a context-aware payment application that uses advanced telemetry metrics (including location, altitude, heading, and speed) to identify merchants directly around you and verify payments in just a tap."),
         ("How does location-based payment work?", "Our system captures your current location metrics and references nearby merchant coordinates to suggest the exact store you're standing in, eliminating the need to search for UPI QR codes manually."),
         ("Are my payment details secure?", "Yes. DIGIPAY relies on secure, standard UPI deep links and hashes all sensitive transaction data. The backend operates over verified HTTPS protocols and blocks external redirects/clickjacking attempt vectors."),
-        ("I'm experiencing payment failures. What do I do?", "Please ensure your location services are enabled. If a transaction fails to complete, check your network connection and verify with your bank app if your UPI ID is active.")
+        ("I'm experiencing payment failures. What do I do?", "Please ensure your location services are enabled. If a transaction fails to complete, check your network connection and verify with your bank app if your UPI ID is active."),
+        ("How do I update my monthly budget limit?", "Go to the profile settings tab, tap 'Monthly Budget' under 'Payment Settings', enter your new limit in the prompt, and tap 'Save'. It will instantly synchronize with backend analytics."),
+        ("What is a DIGIPIN address?", "DIGIPIN is India's National Digital Address system. DIGIPAY translates GPS coordinates into an alphanumeric grid reference that provides highly accurate locations without revealing exact street details."),
+        ("Why does DIGIPAY need motion/speed analytics?", "Speed analytics help detect if you are in transit (driving or walking) to better optimize proximity merchant scans and prevent erroneous/accidental background transaction matching."),
+        ("Does the app store my UPI PIN?", "No. DIGIPAY handles payment initialization using standard UPI deep-links which redirect securely to your chosen banking app. DIGIPAY never receives or stores your private UPI PIN.")
     ]
 
     var body: some View {
@@ -288,6 +367,27 @@ struct ContactUsView: View {
                 ScrollView {
                     VStack(spacing: 24) {
                         VStack(alignment: .leading, spacing: 20) {
+                            Text("Support Channels")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(AppColors.primaryText)
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                Label("Support Email: support@digipay.in", systemImage: "envelope.fill")
+                                Label("Customer Helpline: +1 (800) 555-DPAY", systemImage: "phone.fill")
+                                Label("HQ: Gachibowli, Hyderabad, TS, India", systemImage: "building.2.fill")
+                                Label("Support Hours: 24/7 Live Assistance", systemImage: "clock.fill")
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(AppColors.secondaryText)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(AppColors.cardBackground)
+                            .cornerRadius(16)
+                            
+                            Divider()
+                                .background(AppColors.borderColor)
+                            
                             Text("Get in Touch")
                                 .font(.headline)
                                 .fontWeight(.bold)
@@ -434,6 +534,184 @@ struct GenericInfoView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+    }
+    
+    private func customNavBar(title: String) -> some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.left")
+                        .font(.title3.bold())
+                    Text("Back")
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(AppColors.primaryBlue)
+            }
+            Spacer()
+            Text(title)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(AppColors.primaryText)
+            Spacer()
+            Text("Back").hidden()
+        }
+        .padding()
+        .background(AppColors.primaryBackground)
+    }
+}
+
+// MARK: - SYSTEM DIAGNOSTICS
+
+struct SystemDiagnosticsView: View {
+    @EnvironmentObject var session: SessionManager
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var dynamicBiometricStatus = "Checking..."
+    @State private var dynamicNotificationStatus = "Checking..."
+    @State private var apiReachability = "Checking..."
+    
+    var body: some View {
+        ZStack {
+            AppColors.primaryBackground
+                .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                customNavBar(title: "System Diagnostics")
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // Header info
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("System Overview")
+                                .font(.title2.bold())
+                                .foregroundColor(AppColors.primaryText)
+                            Text("Live connectivity parameters and hardware authorization indicators.")
+                                .font(.subheadline)
+                                .foregroundColor(AppColors.secondaryText)
+                        }
+                        .padding(.horizontal)
+                        
+                        // Device parameters
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Application Info")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(AppColors.primaryText)
+                                .padding(.horizontal)
+                            
+                            VStack(spacing: 1) {
+                                diagnosticRow(label: "App Version", value: "1.2.0 (Build 42)")
+                                diagnosticRow(label: "Deployment Environment", value: "Production Railway")
+                                diagnosticRow(label: "API Base URL", value: "https://web-production-86613.up.railway.app")
+                                diagnosticRow(label: "Active Session Owner", value: session.fullName.isEmpty ? "Complete Profile" : session.fullName)
+                                diagnosticRow(label: "Registered Role", value: session.role.rawValue.capitalized)
+                            }
+                            .background(AppColors.cardBackground)
+                            .cornerRadius(18)
+                            .padding(.horizontal)
+                        }
+                        
+                        // Hardware parameters
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Hardware & Permissions")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(AppColors.primaryText)
+                                .padding(.horizontal)
+                            
+                            VStack(spacing: 1) {
+                                diagnosticRow(label: "Biometrics Hardware", value: dynamicBiometricStatus)
+                                diagnosticRow(label: "Push Notifications State", value: dynamicNotificationStatus)
+                                diagnosticRow(label: "API Connection Status", value: apiReachability)
+                            }
+                            .background(AppColors.cardBackground)
+                            .cornerRadius(18)
+                            .padding(.horizontal)
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.vertical)
+                }
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+        .onAppear {
+            checkBiometricSupport()
+            checkNotificationStatus()
+            testApiReachability()
+        }
+    }
+    
+    private func diagnosticRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .foregroundColor(AppColors.secondaryText)
+            Spacer()
+            Text(value)
+                .fontWeight(.semibold)
+                .foregroundColor(AppColors.primaryText)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+    }
+    
+    private func checkBiometricSupport() {
+        let context = LAContext()
+        var error: NSError?
+        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+            switch context.biometryType {
+            case .faceID:
+                dynamicBiometricStatus = "Face ID Supported & Configured"
+            case .touchID:
+                dynamicBiometricStatus = "Touch ID Supported & Configured"
+            case .opticID:
+                dynamicBiometricStatus = "Optic ID Supported & Configured"
+            case .none:
+                dynamicBiometricStatus = "No Hardware Biometrics Available"
+            @unknown default:
+                dynamicBiometricStatus = "Biometrics Available"
+            }
+        } else {
+            dynamicBiometricStatus = "Unsupported / Disabled"
+        }
+    }
+    
+    private func checkNotificationStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                switch settings.authorizationStatus {
+                case .authorized:
+                    dynamicNotificationStatus = "Authorized"
+                case .denied:
+                    dynamicNotificationStatus = "Denied"
+                case .notDetermined:
+                    dynamicNotificationStatus = "Not Determined (Unrequested)"
+                default:
+                    dynamicNotificationStatus = "Inactive"
+                }
+            }
+        }
+    }
+    
+    private func testApiReachability() {
+        guard let url = URL(string: "https://web-production-86613.up.railway.app/") else {
+            apiReachability = "Invalid Endpoint"
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { _, response, error in
+            DispatchQueue.main.async {
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    apiReachability = "Connected (HTTP 200 OK)"
+                } else {
+                    apiReachability = "Offline / Connection Error"
+                }
+            }
+        }.resume()
     }
     
     private func customNavBar(title: String) -> some View {

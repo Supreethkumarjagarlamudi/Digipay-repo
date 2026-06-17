@@ -16,11 +16,15 @@ enum Endpoints {
     
     static let registerMerchant =
     "\(AppConfig.baseURL)/merchant/register"
+    static let updateMerchant =
+    "\(AppConfig.baseURL)/merchant/update"
     static let recommendations =
     "\(AppConfig.baseURL)/merchant/recommendations"
     
     static let merchantDashboard =
     "\(AppConfig.baseURL)/merchant/dashboard"
+    static let merchantPayments =
+    "\(AppConfig.baseURL)/merchant/payments"
     
     static let createTransaction =
     "\(AppConfig.baseURL)/wallet/transactions"

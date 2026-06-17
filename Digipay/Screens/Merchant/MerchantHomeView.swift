@@ -8,42 +8,42 @@ struct MerchantHomeView: View {
     @StateObject private var dashboardVM = MerchantHomeViewModel()
 
     var body: some View {
+        NavigationStack {
+            ZStack {
+                AppColors.primaryBackground
+                    .ignoresSafeArea()
 
-        ZStack {
-
-            AppColors.primaryBackground
-                .ignoresSafeArea()
-
-            ScrollView(
-                showsIndicators: false
-            ) {
-
-                VStack(
-                    spacing: 24
+                ScrollView(
+                    showsIndicators: false
                 ) {
+                    VStack(
+                        spacing: 24
+                    ) {
+                        headerSection
 
-                    headerSection
+                        revenueCard
+                        
+                        revenueGraphSection
 
-                    revenueCard
+                        statsSection
 
-                    statsSection
+                        recentActivitySection
 
-                    recentActivitySection
-
-                    statusSection
-                    
-                    logoutButton
+                        statusSection
+                        
+                        logoutButton
+                    }
+                    .padding()
+                    .padding(.bottom, 40)
                 }
-                .padding()
-                .padding(.bottom, 40)
+                .refreshable {
+                    await dashboardVM.loadDashboard()
+                }
             }
-            .refreshable {
-                await dashboardVM.loadDashboard()
-            }
-        }
-        .onAppear {
-            Task {
-                await dashboardVM.loadDashboard()
+            .onAppear {
+                Task {
+                    await dashboardVM.loadDashboard()
+                }
             }
         }
     }
@@ -79,13 +79,27 @@ extension MerchantHomeView {
 
             Spacer()
 
-            Image("app_logo")
-                .resizable()
-                .scaledToFit()
-                .frame(
-                    width: 50,
-                    height: 50
-                )
+            HStack(spacing: 14) {
+                NavigationLink(destination: EditMerchantProfileView(dashboardVM: dashboardVM)) {
+                    Circle()
+                        .fill(AppColors.primaryBlue.opacity(0.12))
+                        .frame(width: 44, height: 44)
+                        .overlay {
+                            Image(systemName: "pencil")
+                                .foregroundColor(AppColors.primaryBlue)
+                                .font(.body.bold())
+                        }
+                }
+                .buttonStyle(.plain)
+
+                Image("app_logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(
+                        width: 50,
+                        height: 50
+                    )
+            }
         }
     }
 }
@@ -242,10 +256,20 @@ extension MerchantHomeView {
             spacing: 14
         ) {
 
-            Text("Recent Payments")
-                .font(
-                    .title3.bold()
-                )
+            HStack {
+                Text("Recent Payments")
+                    .font(
+                        .title3.bold()
+                    )
+                Spacer()
+                NavigationLink(destination: MerchantPaymentsHistoryView(dashboardVM: dashboardVM)) {
+                    Text("View Statement")
+                        .font(.subheadline)
+                        .foregroundColor(AppColors.primaryBlue)
+                        .fontWeight(.semibold)
+                }
+                .buttonStyle(.plain)
+            }
 
             if dashboardVM.recentPayments.isEmpty {
                 Text("No payments received yet.")
@@ -427,5 +451,59 @@ extension MerchantHomeView {
 
             .cornerRadius(18)
         }
+    }
+}
+
+// MARK: REVENUE TREND GRAPH
+extension MerchantHomeView {
+    private var revenueGraphSection: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Weekly Revenue Trend")
+                .font(.title3.bold())
+                .foregroundColor(AppColors.primaryText)
+            
+            if dashboardVM.dailyRevenueHistory.isEmpty {
+                Text("No historical data available")
+                    .font(.subheadline)
+                    .foregroundColor(AppColors.secondaryText)
+                    .frame(height: 140)
+                    .frame(maxWidth: .infinity)
+            } else {
+                let maxRevenue = dashboardVM.dailyRevenueHistory.map { $0.revenue }.max() ?? 1.0
+                let displayMax = max(100.0, maxRevenue)
+                
+                HStack(alignment: .bottom, spacing: 16) {
+                    ForEach(dashboardVM.dailyRevenueHistory) { item in
+                        VStack(spacing: 8) {
+                            Text("₹\(Int(item.revenue))")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(AppColors.secondaryText)
+                                .lineLimit(1)
+                            
+                            let heightRatio = CGFloat(item.revenue / displayMax)
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [AppColors.primaryBlue, AppColors.secondaryCyan],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .frame(height: max(10, 120 * heightRatio))
+                            
+                            Text(item.day)
+                                .font(.caption2.bold())
+                                .foregroundColor(AppColors.primaryText)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 160)
+                .padding(.vertical, 8)
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .cornerRadius(22)
     }
 }

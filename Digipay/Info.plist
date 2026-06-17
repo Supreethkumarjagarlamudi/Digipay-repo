@@ -38,6 +38,11 @@
 		<string>phonepe</string>
 		<string>paytmmp</string>
 		<string>tez</string>
+		<string>paytm</string>
+		<string>gpay</string>
+		<string>bhim</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>DIGIPAY uses Face ID to secure wallet transactions and authenticate user logins.</string>
 </dict>
 </plist>

@@ -81,6 +81,16 @@ final class AuthViewModel: ObservableObject {
                 response.user.full_name ?? "",
                 forKey: "fullName"
             )
+            UserDefaults.standard.set(
+                response.user.phone_number,
+                forKey: "phoneNumber"
+            )
+            if let budget = response.user.monthly_budget {
+                UserDefaults.standard.set(budget, forKey: "monthlyBudget")
+            }
+            if let income = response.user.monthly_income {
+                UserDefaults.standard.set(income, forKey: "monthlyIncome")
+            }
             isAuthenticated = true
         } catch let error as NSError {
             

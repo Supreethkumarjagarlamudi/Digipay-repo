@@ -256,23 +256,35 @@ struct OTPView: View {
                 forKey: "profileCompleted"
             )
             let fullName = UserDefaults.standard.string(forKey: "fullName") ?? ""
+            let phone = UserDefaults.standard.string(forKey: "phoneNumber") ?? phoneNumber
+            let budgetVal = UserDefaults.standard.double(forKey: "monthlyBudget")
+            let incomeVal = UserDefaults.standard.double(forKey: "monthlyIncome")
 
             if profileCompleted {
                 session.login(
                     token: authVM.accessToken,
                     role: role.rawValue,
                     profileCompleted: true,
-                    fullName: fullName
+                    fullName: fullName,
+                    phoneNumber: phone,
+                    monthlyBudget: budgetVal > 0 ? budgetVal : nil,
+                    monthlyIncome: incomeVal > 0 ? incomeVal : nil
                 )
             } else {
                 // Keep tokens and role in session, but profileCompleted = false
                 session.accessToken = authVM.accessToken
                 session.role = role
                 session.profileCompleted = false
+                session.phoneNumber = phone
+                session.monthlyBudget = budgetVal > 0 ? budgetVal : 15000.0
+                session.monthlyIncome = incomeVal > 0 ? incomeVal : 45000.0
                 
                 UserDefaults.standard.set(authVM.accessToken, forKey: "accessToken")
                 UserDefaults.standard.set(role.rawValue, forKey: "userRole")
                 UserDefaults.standard.set(false, forKey: "profileCompleted")
+                UserDefaults.standard.set(phone, forKey: "phoneNumber")
+                if budgetVal > 0 { UserDefaults.standard.set(budgetVal, forKey: "monthlyBudget") }
+                if incomeVal > 0 { UserDefaults.standard.set(incomeVal, forKey: "monthlyIncome") }
 
                 if role == .customer {
                     navigateToProfile = true

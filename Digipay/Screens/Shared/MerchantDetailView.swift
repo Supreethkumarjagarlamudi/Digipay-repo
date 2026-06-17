@@ -4,8 +4,6 @@ struct MerchantDetailView: View {
 
     let merchant: NearbyMerchant
 
-    @StateObject
-    private var locationManager = CustomerLocationManager()
 
     var body: some View {
 
@@ -83,24 +81,10 @@ struct MerchantDetailView: View {
 
                     infoCard
 
-                    Button {
-                        Task {
-                            try? await WalletService.shared.createTransaction(
-                                merchantName: merchant.business_name,
-                                amount: 100.0,
-                                category: merchant.category,
-                                latitude: locationManager.latitude,
-                                longitude: locationManager.longitude,
-                                heading: locationManager.heading,
-                                speed: locationManager.speed
-                            )
-                        }
-                        UPIManager.shared
-                            .openUPILink(
-                                deepLink:
-                                    merchant.upi_deep_link
-                            )
-
+                    NavigationLink {
+                        AmountEntryView(
+                            merchant: merchant
+                        )
                     } label: {
 
                         Text("Pay Now")

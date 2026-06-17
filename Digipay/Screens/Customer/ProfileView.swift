@@ -5,16 +5,24 @@ struct ProfileView: View {
     @AppStorage("isLoggedIn")
     private var isLoggedIn = false
 
-    @AppStorage("fullName")
-    private var fullName = ""
-
-    @AppStorage("userRole")
-    private var role = "customer"
-
     @EnvironmentObject
     private var session: SessionManager
 
     @State private var showLogoutAlert = false
+    
+    // Payment Settings states
+    @State private var showBudgetAlert = false
+    @State private var showIncomeAlert = false
+    @State private var budgetInput = ""
+    @State private var incomeInput = ""
+    
+    @State private var showResetConfirm = false
+    @State private var showResetSuccess = false
+    
+    @State private var isExporting = false
+    @State private var exportItems: [Any] = []
+    @State private var showShareSheet = false
+    @State private var exportErrorMessage: String? = nil
 
     var body: some View {
 
@@ -36,6 +44,8 @@ struct ProfileView: View {
                         profileHeader
 
                         accountSection
+                        
+                        paymentSettingsSection
 
                         supportSection
 
@@ -48,29 +58,83 @@ struct ProfileView: View {
                 }
             }
             .navigationBarHidden(true)
+            
+            // Logout confirmation
             .alert(
                 "Logout",
                 isPresented: $showLogoutAlert
             ) {
-
-                Button(
-                    "Cancel",
-                    role: .cancel
-                ) {}
-
-                Button(
-                    "Logout",
-                    role: .destructive
-                ) {
-
+                Button("Cancel", role: .cancel) {}
+                Button("Logout", role: .destructive) {
                     logout()
                 }
-
             } message: {
-
-                Text(
-                    "Are you sure you want to logout?"
-                )
+                Text("Are you sure you want to logout?")
+            }
+            
+            // Budget Edit dialog
+            .alert("Edit Monthly Budget", isPresented: $showBudgetAlert) {
+                TextField("Budget limit (₹)", text: $budgetInput)
+                    .keyboardType(.decimalPad)
+                Button("Save") {
+                    if let val = Double(budgetInput), val > 0 {
+                        updateBudget(val)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Enter your new monthly spending limit.")
+            }
+            
+            // Income Edit dialog
+            .alert("Edit Monthly Income", isPresented: $showIncomeAlert) {
+                TextField("Monthly Income (₹)", text: $incomeInput)
+                    .keyboardType(.decimalPad)
+                Button("Save") {
+                    if let val = Double(incomeInput), val > 0 {
+                        updateIncome(val)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Enter your new monthly income.")
+            }
+            
+            // Reset confirmation
+            .alert("Reset Statistics", isPresented: $showResetConfirm) {
+                Button("Reset Everything", role: .destructive) {
+                    resetStatistics()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will reset your transaction analytics. This action cannot be undone.")
+            }
+            
+            // Reset Success dialog
+            .alert("Success", isPresented: $showResetSuccess) {
+                Button("OK") {}
+            } message: {
+                Text("Financial statistics have been successfully reset.")
+            }
+            
+            // Export Error dialog
+            .alert("Export Failed", isPresented: Binding(
+                get: { exportErrorMessage != nil },
+                set: { if !$0 { exportErrorMessage = nil } }
+            )) {
+                Button("OK") {}
+            } message: {
+                Text(exportErrorMessage ?? "")
+            }
+            
+            // Share Sheet presenter
+            .sheet(isPresented: $showShareSheet) {
+                ActivityView(activityItems: exportItems)
+            }
+            .onAppear {
+                Task {
+                    await session.fetchAndSyncProfile()
+                }
             }
         }
     }
@@ -103,14 +167,9 @@ extension ProfileView {
                 )
                 .overlay {
 
-                    Image(
-                        systemName:
-                        "person.fill"
-                    )
-                    .font(
-                        .system(size: 48)
-                    )
-                    .foregroundColor(.white)
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.white)
                 }
 
             VStack(
@@ -118,22 +177,27 @@ extension ProfileView {
             ) {
 
                 Text(
-                    fullName.isEmpty
-                    ? "DIGIPAY User"
-                    : fullName
+                    session.fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? "Complete Profile"
+                    : session.fullName
                 )
-                .font(
-                    .title2.bold()
-                )
+                .font(.title2.bold())
+                .foregroundColor(AppColors.primaryText)
 
-                Text(
-                    role.capitalized
-                )
-                .font(.subheadline)
+                if !session.phoneNumber.isEmpty {
+                    Text(session.phoneNumber)
+                        .font(.subheadline)
+                        .foregroundColor(AppColors.secondaryText)
+                }
 
-                .foregroundColor(
-                    AppColors.secondaryText
-                )
+                Text(session.role.rawValue.capitalized)
+                    .font(.caption.bold())
+                    .foregroundColor(AppColors.primaryBlue)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(AppColors.primaryBlue.opacity(0.1))
+                    .cornerRadius(8)
+                    .padding(.top, 2)
             }
         }
         .frame(
@@ -181,6 +245,114 @@ extension ProfileView {
                 )
             }
             .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - PAYMENT SETTINGS
+
+extension ProfileView {
+    
+    private var paymentSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("Payment Settings")
+            
+            NavigationLink(destination: UPIAppSelectorView().environmentObject(session)) {
+                HStack {
+                    Image(systemName: "creditcard.and.123")
+                        .frame(width: 24)
+                    Text("Default UPI App")
+                    Spacer()
+                    Text(session.defaultUPIApp)
+                        .font(.subheadline)
+                        .foregroundColor(AppColors.primaryBlue)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(AppColors.secondaryText)
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .cornerRadius(18)
+            }
+            .buttonStyle(.plain)
+            
+            Button {
+                budgetInput = String(format: "%.0f", session.monthlyBudget)
+                showBudgetAlert = true
+            } label: {
+                HStack {
+                    Image(systemName: "slider.horizontal.3")
+                        .frame(width: 24)
+                    Text("Monthly Budget")
+                    Spacer()
+                    Text("₹\(Int(session.monthlyBudget))")
+                        .font(.subheadline)
+                        .foregroundColor(AppColors.secondaryText)
+                    Image(systemName: "pencil")
+                        .font(.caption)
+                        .foregroundColor(AppColors.primaryBlue)
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .cornerRadius(18)
+            }
+            .buttonStyle(.plain)
+            
+            Button {
+                incomeInput = String(format: "%.0f", session.monthlyIncome)
+                showIncomeAlert = true
+            } label: {
+                HStack {
+                    Image(systemName: "banknote.fill")
+                        .frame(width: 24)
+                    Text("Monthly Income")
+                    Spacer()
+                    Text("₹\(Int(session.monthlyIncome))")
+                        .font(.subheadline)
+                        .foregroundColor(AppColors.secondaryText)
+                    Image(systemName: "pencil")
+                        .font(.caption)
+                        .foregroundColor(AppColors.primaryBlue)
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .cornerRadius(18)
+            }
+            .buttonStyle(.plain)
+            
+            Button {
+                showResetConfirm = true
+            } label: {
+                ProfileRow(
+                    icon: "arrow.counterclockwise.circle.fill",
+                    title: "Reset Statistics"
+                )
+                .foregroundColor(AppColors.errorRed)
+            }
+            .buttonStyle(.plain)
+            
+            Button(action: exportTransactions) {
+                HStack {
+                    Image(systemName: "square.and.arrow.up.fill")
+                        .frame(width: 24)
+                    if isExporting {
+                        Text("Exporting...")
+                        Spacer()
+                        ProgressView()
+                            .tint(AppColors.primaryBlue)
+                    } else {
+                        Text("Export Transactions (CSV)")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .cornerRadius(18)
+            }
+            .buttonStyle(.plain)
+            .disabled(isExporting)
         }
     }
 }
@@ -266,6 +438,14 @@ extension ProfileView {
                 )
             }
             .buttonStyle(.plain)
+
+            NavigationLink(destination: SystemDiagnosticsView().environmentObject(session)) {
+                ProfileRow(
+                    icon: "cpu.fill",
+                    title: "System Diagnostics"
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -314,7 +494,7 @@ extension ProfileView {
     }
 }
 
-// MARK: - HELPERS
+// MARK: - ACTIONS & HELPERS
 
 extension ProfileView {
 
@@ -325,13 +505,169 @@ extension ProfileView {
         HStack {
 
             Text(title)
-                .font(
-                    .headline
-                )
+                .font(.headline)
+                .foregroundColor(AppColors.primaryText)
+                .padding(.leading, 4)
 
             Spacer()
         }
     }
+    
+    private func updateBudget(_ value: Double) {
+        session.monthlyBudget = value
+        UserDefaults.standard.set(value, forKey: "monthlyBudget")
+        
+        Task {
+            do {
+                try await UserService.shared.updateProfile(
+                    fullName: session.fullName.isEmpty ? "Complete Profile" : session.fullName,
+                    email: nil,
+                    role: session.role.rawValue,
+                    monthlyBudget: value,
+                    monthlyIncome: session.monthlyIncome
+                )
+                NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionCreated"), object: nil)
+            } catch {
+                print("Failed to sync budget to backend:", error)
+            }
+        }
+    }
+    
+    private func updateIncome(_ value: Double) {
+        session.monthlyIncome = value
+        UserDefaults.standard.set(value, forKey: "monthlyIncome")
+        
+        Task {
+            do {
+                try await UserService.shared.updateProfile(
+                    fullName: session.fullName.isEmpty ? "Complete Profile" : session.fullName,
+                    email: nil,
+                    role: session.role.rawValue,
+                    monthlyBudget: session.monthlyBudget,
+                    monthlyIncome: value
+                )
+                NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionCreated"), object: nil)
+            } catch {
+                print("Failed to sync income to backend:", error)
+            }
+        }
+    }
+    
+    private func resetStatistics() {
+        // Trigger statistics reload/reset notification
+        NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionCreated"), object: nil)
+        showResetSuccess = true
+    }
+    
+    private func exportTransactions() {
+        isExporting = true
+        exportErrorMessage = nil
+        
+        Task {
+            do {
+                let payload = try await WalletService.shared.fetchAnalytics()
+                
+                var csvString = "ID,Merchant Name,Amount (INR),Category,Timestamp,Latitude,Longitude\n"
+                for tx in payload.recent_transactions {
+                    let lat = tx.latitude != nil ? "\(tx.latitude!)" : ""
+                    let lon = tx.longitude != nil ? "\(tx.longitude!)" : ""
+                    csvString += "\(tx.id),\"\(tx.merchant_name)\",\(tx.amount),\"\(tx.category)\",\"\(tx.timestamp)\",\(lat),\(lon)\n"
+                }
+                
+                let tempDirectory = FileManager.default.temporaryDirectory
+                let fileURL = tempDirectory.appendingPathComponent("Digipay_Transactions_Export.csv")
+                try csvString.write(to: fileURL, atomically: true, encoding: .utf8)
+                
+                await MainActor.run {
+                    self.isExporting = false
+                    self.exportItems = [fileURL]
+                    self.showShareSheet = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.isExporting = false
+                    self.exportErrorMessage = "Could not fetch or format transaction records: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+// MARK: - SUBVIEWS & HELPERS
+
+struct UPIAppSelectorView: View {
+    @EnvironmentObject var session: SessionManager
+    @Environment(\.dismiss) private var dismiss
+
+    let apps = ["Ask Every Time", "Google Pay", "PhonePe", "Paytm", "BHIM"]
+
+    var body: some View {
+        ZStack {
+            AppColors.primaryBackground
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "chevron.left")
+                                .font(.title3.bold())
+                            Text("Back")
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(AppColors.primaryBlue)
+                    }
+                    Spacer()
+                    Text("Default UPI App")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(AppColors.primaryText)
+                    Spacer()
+                    Text("Back").hidden()
+                }
+                .padding()
+                .background(AppColors.primaryBackground)
+
+                List {
+                    ForEach(apps, id: \.self) { app in
+                        Button {
+                            session.defaultUPIApp = app
+                            UserDefaults.standard.set(app, forKey: "defaultUPIApp")
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(app)
+                                    .foregroundColor(AppColors.primaryText)
+                                Spacer()
+                                if session.defaultUPIApp == app {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(AppColors.primaryBlue)
+                                        .fontWeight(.bold)
+                                }
+                            }
+                        }
+                    }
+                    .listRowBackground(AppColors.cardBackground)
+                }
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+}
+
+struct ActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    let applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 struct ProfileRow: View {

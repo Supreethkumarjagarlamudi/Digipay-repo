@@ -266,19 +266,8 @@ extension DiscoverView {
                 }
 
                 // Pay Now Button
-                Button {
-                    Task {
-                        try? await WalletService.shared.createTransaction(
-                            merchantName: merchant.business_name,
-                            amount: 100.0,
-                            category: merchant.category,
-                            latitude: locationManager.latitude,
-                            longitude: locationManager.longitude,
-                            heading: locationManager.heading,
-                            speed: locationManager.speed
-                        )
-                    }
-                    UPIManager.shared.openUPILink(deepLink: merchant.upi_deep_link)
+                NavigationLink {
+                    AmountEntryView(merchant: merchant)
                 } label: {
                     Text("Pay Now")
                         .font(.system(size: 14, weight: .bold))
