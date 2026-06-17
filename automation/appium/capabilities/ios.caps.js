@@ -4,7 +4,7 @@ module.exports = {
     simulator: {
         platformName: 'iOS',
         'appium:deviceName': process.env.IOS_DEVICE_NAME || 'iPhone 17',
-        'appium:platformVersion': process.env.IOS_PLATFORM_VERSION || '17.0',
+        'appium:platformVersion': process.env.IOS_PLATFORM_VERSION || '26.5',
         'appium:automationName': 'XCUITest',
         'appium:app': process.env.IOS_APP_PATH || path.join(__dirname, '../../../Build/Digipay.app'),
         'appium:noReset': true,

@@ -17,6 +17,9 @@ exports.config = {
     runner: 'local',
     port: 4723,
     path: '/',
+    autoCompileOpts: {
+        autoCompile: false
+    },
     specs: [
         './appium/tests/**/*.js'
     ],
@@ -24,8 +27,8 @@ exports.config = {
     maxInstances: 5,
     capabilities: [{
         platformName: 'iOS',
-        'appium:deviceName': 'iPhone 17',
-        'appium:platformVersion': '17.0',
+        'appium:deviceName': process.env.IOS_DEVICE_NAME || 'iPhone 17',
+        'appium:platformVersion': process.env.IOS_PLATFORM_VERSION || '26.5',
         'appium:automationName': 'XCUITest',
         'appium:app': path.join(__dirname, '../Build/Digipay.app'),
         'appium:noReset': true,
@@ -57,10 +60,21 @@ exports.config = {
     beforeSession: function () {
         // Pre-checks or variables setup
     },
-    before: function () {
+    before: async function () {
         const chai = require('chai');
         global.expect = chai.expect;
         global.assert = chai.assert;
+
+        // Try to skip onboarding if present
+        try {
+            const skipBtn = await $('~Skip');
+            if (await skipBtn.isDisplayed()) {
+                await skipBtn.click();
+                console.log('Skipped onboarding successfully');
+            }
+        } catch (e) {
+            console.log('Onboarding skip button not found or already bypassed');
+        }
     },
     afterStep: async function (step, scenario, result) {
         if (!result.passed) {

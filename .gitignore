@@ -1,0 +1,12 @@
+# Build Artifacts
+Build/
+DerivedData/
+
+# OS specific files
+.DS_Store
+
+# Temporary logs and test results
+*.txt
+*.log
+.test-results/
+.pytest_cache/
