@@ -100,16 +100,22 @@ def pytest_sessionfinish(session, exitstatus):
 def _build_options() -> XCUITestOptions:
     opts = XCUITestOptions()
     opts.platform_name = "iOS"
-    opts.platform_version = os.getenv("IOS_VERSION", "17.0")
-    opts.device_name = os.getenv("IOS_DEVICE_NAME", "iPhone 15")
+    opts.platform_version = os.getenv("IOS_VERSION", "18.2")
+    opts.device_name = os.getenv("IOS_DEVICE_NAME", "iPhone 16")
     opts.bundle_id = os.getenv("APP_BUNDLE_ID", "com.supreeth.Digipay")
     opts.automation_name = "XCUITest"
     opts.no_reset = False
     opts.full_reset = False
     opts.new_command_timeout = 120
-    opts.wda_launch_timeout = 60000
-    opts.wda_connection_timeout = 60000
-    # Simulator: build & run from derived data
+    opts.wda_launch_timeout = 120000
+    opts.wda_connection_timeout = 120000
+
+    # If a specific UDID is provided (CI sets SIMULATOR_UDID), target it directly
+    udid = os.getenv("SIMULATOR_UDID", "")
+    if udid:
+        opts.udid = udid
+
+    # Simulator app path
     app_path = os.getenv("APP_PATH", "")
     if app_path:
         opts.app = app_path
