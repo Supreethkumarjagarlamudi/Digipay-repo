@@ -9,7 +9,7 @@ on:
 
 jobs:
   automation-test:
-    runs-on: macos-13
+    runs-on: self-hosted
     
     steps:
       - name: Checkout Repository
