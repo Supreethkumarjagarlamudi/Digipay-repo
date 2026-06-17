@@ -20,7 +20,7 @@ env:
 jobs:
   automation-test:
     name: 🏗️ Build App & Run Appium Automation
-    runs-on: macos-15
+    runs-on: self-hosted
     
     steps:
       - name: ⬇️ Checkout Code
@@ -28,23 +28,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: ⚙️ Select Xcode Version
+      - name: ⚙️ Validate Xcode Version
         run: |
-          XCODE_PATH=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1 || echo "")
-          if [ -z "$XCODE_PATH" ]; then
-            XCODE_PATH=$(xcode-select -p | sed 's|/Contents/Developer||')
-            echo "⚠️ No Xcode_16 found, using default: $XCODE_PATH"
-          fi
-          sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
-          echo "✅ Xcode: $(xcodebuild -version | head -1)"
-
-      - name: 📦 Cache DerivedData
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: ${{ runner.os }}-deriveddata-${{ hashFiles('**/*.swift', '**/*.pbxproj') }}
-          restore-keys: |
-            ${{ runner.os }}-deriveddata-
+          echo "✅ Active Xcode Developer Path: $(xcode-select -p)"
+          echo "✅ Active Xcode Version: $(xcodebuild -version | head -1)"
 
       - name: 🔨 Build iOS App (Simulator)
         run: |
@@ -117,8 +104,20 @@ jobs:
 
       - name: 📦 Install Appium and Drivers
         run: |
-          npm install -g appium@${{ env.APPIUM_VERSION }}
-          appium driver install xcuitest@${{ env.XCUITEST_DRIVER }}
+          if ! command -v appium &> /dev/null; then
+            echo "Appium not found. Installing globally..."
+            npm install -g appium@${{ env.APPIUM_VERSION }}
+          else
+            echo "✅ Appium already installed: $(appium --version)"
+          fi
+          
+          if ! appium driver list --installed | grep -i xcuitest &> /dev/null; then
+            echo "XCUITest driver not found. Installing..."
+            appium driver install xcuitest@${{ env.XCUITEST_DRIVER }}
+          else
+            echo "✅ XCUITest driver already installed."
+          fi
+          
           appium driver list
 
       - name: 🚀 Launch Appium Server
