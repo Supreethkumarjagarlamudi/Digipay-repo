@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
+    "postinstall": "node scripts/patch-wdio-node22.cjs",
     "test": "npx wdio run wdio.conf.js",
     "report": "node utils/reportRunner.js",
     "allure:generate": "npx allure generate reports/allure -o reports/html --clean",
