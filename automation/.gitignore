@@ -1,9 +1,0 @@
-node_modules/
-reports/allure/
-reports/html/
-reports/excel/
-reports/logs/
-reports/screenshots/
-reports/videos/
-.env
-.DS_Store
