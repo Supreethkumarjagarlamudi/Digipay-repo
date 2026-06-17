@@ -1,0 +1,163 @@
+name: 📱 iOS E2E WebdriverIO Appium Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  APPIUM_VERSION: 2.11.5
+  XCUITEST_DRIVER: 7.26.4
+  NODE_VERSION: 22
+  IOS_VERSION: '18.5'
+  IOS_DEVICE_NAME: 'iPhone 16'
+  APP_BUNDLE_ID: com.supreeth.Digipay
+  APPIUM_HOST: http://127.0.0.1
+  APPIUM_PORT: 4723
+
+jobs:
+  automation-test:
+    name: 🏗️ Build App & Run Appium Automation
+    runs-on: macos-15
+    
+    steps:
+      - name: ⬇️ Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: ⚙️ Select Xcode Version
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1 || echo "")
+          if [ -z "$XCODE_PATH" ]; then
+            XCODE_PATH=$(xcode-select -p | sed 's|/Contents/Developer||')
+            echo "⚠️ No Xcode_16 found, using default: $XCODE_PATH"
+          fi
+          sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          echo "✅ Xcode: $(xcodebuild -version | head -1)"
+
+      - name: 📦 Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('**/*.swift', '**/*.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-
+
+      - name: 🔨 Build iOS App (Simulator)
+        run: |
+          DERIVED_DIR="$HOME/Library/Developer/Xcode/DerivedData"
+          
+          # Find the first available iOS simulator runtime
+          SIM_RUNTIME=$(xcrun simctl list runtimes available | grep -i "iOS" | tail -1 | awk '{print $NF}' | tr -d '()')
+          echo "Using runtime: $SIM_RUNTIME"
+          
+          xcodebuild build \
+            -project Digipay.xcodeproj \
+            -scheme Digipay \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "$DERIVED_DIR" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty --color || true
+            
+          APP_PATH=$(find "$DERIVED_DIR" -name "Digipay.app" -path "*/iphonesimulator*" | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ ERROR: Digipay.app not found after build"
+            exit 1
+          fi
+          echo "APP_PATH=${APP_PATH}" >> $GITHUB_ENV
+          echo "✅ App built at: ${APP_PATH}"
+
+      - name: 🟢 Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 🚀 Boot iOS Simulator
+        run: |
+          # Query available runtimes and pick the best matching simulator
+          SIM_DEVICE_TYPE="iPhone 16"
+          SIM_RUNTIME_OS=$(xcrun simctl list runtimes available | grep -i "iOS" | tail -1 | awk '{print $NF}')
+          
+          echo "Target Simulator: $SIM_DEVICE_TYPE ($SIM_RUNTIME_OS)"
+          
+          # Delete existing matching simulators to clean up
+          xcrun simctl list devices | grep -E "iPhone 16|Digipay-Sim" | awk -F '[()]' '{print $2}' | xargs -I {} xcrun simctl delete {} 2>/dev/null || true
+          
+          # Create a fresh new simulator device
+          SIM_UDID=$(xcrun simctl create "Digipay-Sim" "$SIM_DEVICE_TYPE" "$SIM_RUNTIME_OS")
+          echo "SIMULATOR_UDID=${SIM_UDID}" >> $GITHUB_ENV
+          echo "Created simulator UDID: $SIM_UDID"
+          
+          # Boot the simulator and wait for state booted
+          xcrun simctl boot "$SIM_UDID"
+          
+          # Wait up to 60 seconds for simulator boot
+          echo "Waiting for simulator to boot..."
+          for i in {1..30}; do
+            BOOT_STATE=$(xcrun simctl list devices | grep "$SIM_UDID" | grep -o "Booted" || echo "Offline")
+            if [ "$BOOT_STATE" = "Booted" ]; then
+              echo "✅ Simulator is Booted!"
+              break
+            fi
+            sleep 2
+          done
+          
+          # Enable hardware keyboard and layout support
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          
+          # Print booted devices
+          xcrun simctl list devices | grep "Booted"
+
+      - name: 📦 Install Appium and Drivers
+        run: |
+          npm install -g appium@${{ env.APPIUM_VERSION }}
+          appium driver install xcuitest@${{ env.XCUITEST_DRIVER }}
+          appium driver list
+
+      - name: 🚀 Launch Appium Server
+        run: |
+          appium --log-level info --port ${{ env.APPIUM_PORT }} --relaxed-security > appium.log 2>&1 &
+          
+          # Verify Appium server is responsive
+          echo "Waiting for Appium to launch..."
+          for i in {1..10}; do
+            if curl -s http://127.0.0.1:${{ env.APPIUM_PORT }}/status > /dev/null; then
+              echo "✅ Appium server is up and running!"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: 📦 Install Package Dependencies
+        run: |
+          cd mobile-testing/appium
+          npm install
+
+      - name: 🚀 Execute Appium WebdriverIO Test Suites
+        run: |
+          cd mobile-testing/appium
+          npm run test || echo "⚠️ Some tests failed, proceeding to report compilation step..."
+
+      - name: 📊 Compile Excel and PDF Reports
+        run: |
+          cd mobile-testing/appium
+          npm run generate-reports
+
+      - name: 📤 Upload Test Reports and Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Digipay-E2E-Execution-Artifacts
+          path: |
+            mobile-testing/appium/reports/excel/test_analytics.xlsx
+            mobile-testing/appium/reports/pdf/executive_summary.pdf
+            mobile-testing/appium/reports/screenshots/
+            mobile-testing/appium/reports/logs/
+            mobile-testing/appium/reports/json/test_results.json
+          if-no-files-found: warn

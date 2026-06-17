@@ -18,6 +18,7 @@ struct DiscoverView: View {
 
     private var filteredMerchants: [NearbyMerchant] {
         homeVM.merchants.filter { merchant in
+            guard merchant.latitude != nil, merchant.longitude != nil else { return false }
             let matchesCategory = selectedCategory.isEmpty || selectedCategory == "All" || merchant.category == selectedCategory
             let matchesSearch = searchText.isEmpty || 
                 merchant.business_name.localizedCaseInsensitiveContains(searchText) || 
@@ -42,41 +43,39 @@ struct DiscoverView: View {
                     .tint(AppColors.primaryBlue)
 
                     ForEach(filteredMerchants) { merchant in
-                        if let lat = merchant.latitude, let lon = merchant.longitude {
-                            Annotation(
-                                merchant.business_name,
-                                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                            ) {
-                                Button {
-                                    withAnimation(.spring()) {
-                                        selectedMerchant = merchant
-                                        cameraPosition = .region(MKCoordinateRegion(
-                                            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                                            span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                                        ))
-                                    }
-                                } label: {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "storefront.fill")
-                                            .font(.system(size: 16, weight: .bold))
-                                            .padding(10)
-                                            .background(
-                                                selectedMerchant?.id == merchant.id
-                                                ? AppColors.primaryBlue
-                                                : AppColors.cardBackground
-                                            )
-                                            .foregroundColor(
-                                                selectedMerchant?.id == merchant.id
-                                                ? .white
-                                                : AppColors.primaryBlue
-                                            )
-                                            .clipShape(Circle())
-                                            .overlay(
-                                                Circle()
-                                                    .stroke(AppColors.primaryBlue.opacity(0.5), lineWidth: 2)
-                                            )
-                                            .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
-                                    }
+                        Annotation(
+                            merchant.business_name,
+                            coordinate: CLLocationCoordinate2D(latitude: merchant.latitude!, longitude: merchant.longitude!)
+                        ) {
+                            Button {
+                                withAnimation(.spring()) {
+                                    selectedMerchant = merchant
+                                    cameraPosition = .region(MKCoordinateRegion(
+                                        center: CLLocationCoordinate2D(latitude: merchant.latitude!, longitude: merchant.longitude!),
+                                        span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                                    ))
+                                }
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "storefront.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .padding(10)
+                                        .background(
+                                            selectedMerchant?.id == merchant.id
+                                            ? AppColors.primaryBlue
+                                            : AppColors.cardBackground
+                                        )
+                                        .foregroundColor(
+                                            selectedMerchant?.id == merchant.id
+                                            ? .white
+                                            : AppColors.primaryBlue
+                                        )
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(AppColors.primaryBlue.opacity(0.5), lineWidth: 2)
+                                        )
+                                        .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
                                 }
                             }
                         }
