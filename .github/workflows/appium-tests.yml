@@ -36,7 +36,9 @@ jobs:
 
       - name: 🔨 Build iOS App (Simulator)
         run: |
-          DERIVED_DIR="$HOME/Library/Developer/Xcode/DerivedData"
+          DERIVED_DIR="${{ github.workspace }}/build"
+          rm -rf "$DERIVED_DIR"
+          mkdir -p "$DERIVED_DIR"
           
           # Find the simulator runtime matching IOS_VERSION, fallback to latest
           SIM_RUNTIME=$(xcrun simctl list runtimes available | grep -i "iOS ${{ env.IOS_VERSION }}" | tail -1 | awk '{print $NF}' | tr -d '()')
