@@ -12,8 +12,8 @@ env:
   APPIUM_VERSION: 2.11.5
   XCUITEST_DRIVER: 7.26.4
   NODE_VERSION: 22
-  IOS_VERSION: '18.5'
-  IOS_DEVICE_NAME: 'iPhone 16'
+  IOS_VERSION: '26.5'
+  IOS_DEVICE_NAME: 'iPhone 17'
   APP_BUNDLE_ID: com.supreeth.Digipay
   APPIUM_HOST: http://127.0.0.1
   APPIUM_PORT: 4723
@@ -38,8 +38,11 @@ jobs:
         run: |
           DERIVED_DIR="$HOME/Library/Developer/Xcode/DerivedData"
           
-          # Find the first available iOS simulator runtime
-          SIM_RUNTIME=$(xcrun simctl list runtimes available | grep -i "iOS" | tail -1 | awk '{print $NF}' | tr -d '()')
+          # Find the simulator runtime matching IOS_VERSION, fallback to latest
+          SIM_RUNTIME=$(xcrun simctl list runtimes available | grep -i "iOS ${{ env.IOS_VERSION }}" | tail -1 | awk '{print $NF}' | tr -d '()')
+          if [ -z "$SIM_RUNTIME" ]; then
+            SIM_RUNTIME=$(xcrun simctl list runtimes available | grep -i "iOS" | tail -1 | awk '{print $NF}' | tr -d '()')
+          fi
           echo "Using runtime: $SIM_RUNTIME"
           
           xcodebuild build \
@@ -69,13 +72,16 @@ jobs:
       - name: 🚀 Boot iOS Simulator
         run: |
           # Query available runtimes and pick the best matching simulator
-          SIM_DEVICE_TYPE="iPhone 16"
-          SIM_RUNTIME_OS=$(xcrun simctl list runtimes available | grep -i "iOS" | tail -1 | awk '{print $NF}')
+          SIM_DEVICE_TYPE="${{ env.IOS_DEVICE_NAME }}"
+          SIM_RUNTIME_OS=$(xcrun simctl list runtimes available | grep -i "iOS ${{ env.IOS_VERSION }}" | tail -1 | awk '{print $NF}')
+          if [ -z "$SIM_RUNTIME_OS" ]; then
+            SIM_RUNTIME_OS=$(xcrun simctl list runtimes available | grep -i "iOS" | tail -1 | awk '{print $NF}')
+          fi
           
           echo "Target Simulator: $SIM_DEVICE_TYPE ($SIM_RUNTIME_OS)"
           
           # Delete existing matching simulators to clean up
-          xcrun simctl list devices | grep -E "iPhone 16|Digipay-Sim" | awk -F '[()]' '{print $2}' | xargs -I {} xcrun simctl delete {} 2>/dev/null || true
+          xcrun simctl list devices | grep -E "${SIM_DEVICE_TYPE}|Digipay-Sim" | awk -F '[()]' '{print $2}' | xargs -I {} xcrun simctl delete {} 2>/dev/null || true
           
           # Create a fresh new simulator device
           SIM_UDID=$(xcrun simctl create "Digipay-Sim" "$SIM_DEVICE_TYPE" "$SIM_RUNTIME_OS")
