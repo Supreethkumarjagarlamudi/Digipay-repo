@@ -83,5 +83,6 @@ struct FloatingTabBar: View {
                 : AppColors.secondaryText
             )
         }
+        .accessibilityIdentifier("tab_\(title.lowercased())")
     }
 }

@@ -14,6 +14,7 @@ struct AmountEntryView: View {
     @State private var errorMessage: String? = nil
     @State private var notes: String = ""
     @State private var showFailureAlert = false
+    @FocusState private var isInputActive: Bool
 
     private let presetAmounts = [100.0, 200.0, 500.0, 1000.0]
 
@@ -192,6 +193,15 @@ struct AmountEntryView: View {
         .onAppear {
             locationManager.requestLocation()
         }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    isInputActive = false
+                }
+                .accessibilityIdentifier("keyboardDoneButton")
+            }
+        }
     }
 
     private var customNavBar: some View {
@@ -280,6 +290,7 @@ struct AmountEntryView: View {
                         .foregroundColor(AppColors.primaryText)
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: 240)
+                        .focused($isInputActive)
                 }
             }
             
@@ -293,6 +304,7 @@ struct AmountEntryView: View {
                     .padding()
                     .background(AppColors.cardBackground)
                     .cornerRadius(12)
+                    .focused($isInputActive)
             }
             .padding(.horizontal, 24)
         }

@@ -230,6 +230,7 @@ extension ProfileView {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("editProfileRow")
 
             NavigationLink(destination: PrivacySecurityView()) {
                 ProfileRow(
@@ -298,6 +299,7 @@ extension ProfileView {
                 .cornerRadius(18)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("editBudgetButton")
             
             Button {
                 incomeInput = String(format: "%.0f", session.monthlyIncome)
@@ -320,6 +322,7 @@ extension ProfileView {
                 .cornerRadius(18)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("editIncomeButton")
             
             Button {
                 showResetConfirm = true

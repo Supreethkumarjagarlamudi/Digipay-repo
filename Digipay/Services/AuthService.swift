@@ -44,7 +44,10 @@ final class AuthService {
         }
 
         if !(200...299).contains(httpResponse.statusCode) {
-
+            print("SEND OTP STATUS:", httpResponse.statusCode)
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("SEND OTP RESPONSE:", responseString)
+            }
             throw parseServerError(
                 data: data,
                 statusCode: httpResponse.statusCode

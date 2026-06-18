@@ -16,6 +16,9 @@ struct LoginView: View {
 
     @State private var showOTPAlert = false
 
+    @FocusState
+    private var isInputActive: Bool
+
     var body: some View {
 
         ZStack {
@@ -43,6 +46,7 @@ struct LoginView: View {
                                     AppColors.primaryText
                                 )
                         }
+                        .accessibilityIdentifier("backButton")
 
                         Spacer()
 
@@ -163,6 +167,8 @@ struct LoginView: View {
                             .accessibilityIdentifier("mobileNumberInput")
 
                             .keyboardType(.numberPad)
+
+                            .focused($isInputActive)
 
                             .font(.title3)
                             .foregroundColor(
@@ -356,6 +362,15 @@ struct LoginView: View {
                 "Your OTP is\n\n\(authVM.otp)\n\nUse this code to continue."
             )
 
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    isInputActive = false
+                }
+                .accessibilityIdentifier("keyboardDoneButton")
+            }
         }
     }
 }
