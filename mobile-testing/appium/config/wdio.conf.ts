@@ -65,6 +65,13 @@ const testResults: TestResult[] = [];
 declare const browser: any;
 
 export const config: WebdriverIO.Config = {
+    onPrepare: function (config, capabilities) {
+        const finalResultsPath = path.join(reportsDir, 'json', 'test_results.json');
+        if (fs.existsSync(finalResultsPath)) {
+            fs.unlinkSync(finalResultsPath);
+            console.log(`Cleared previous test results at: ${finalResultsPath}`);
+        }
+    },
     runner: 'local',
     port: parseInt(process.env.APPIUM_PORT || '4723'),
     path: '/',
@@ -229,7 +236,28 @@ export const config: WebdriverIO.Config = {
 
     after: function (result, capabilities, specs) {
         const finalResultsPath = path.join(reportsDir, 'json', 'test_results.json');
-        fs.writeFileSync(finalResultsPath, JSON.stringify(testResults, null, 2));
-        logger.info(`All test results compiled and written to: ${finalResultsPath}`);
+        let accumulatedResults = [];
+        try {
+            if (fs.existsSync(finalResultsPath)) {
+                const existingData = fs.readFileSync(finalResultsPath, 'utf8');
+                if (existingData.trim()) {
+                    accumulatedResults = JSON.parse(existingData);
+                    if (!Array.isArray(accumulatedResults)) {
+                        accumulatedResults = [];
+                    }
+                }
+            }
+        } catch (e: any) {
+            logger.warn(`Failed to read existing test results: ${e.message}`);
+        }
+        
+        accumulatedResults.push(...testResults);
+        
+        try {
+            fs.writeFileSync(finalResultsPath, JSON.stringify(accumulatedResults, null, 2));
+            logger.info(`Test results updated and written to: ${finalResultsPath}`);
+        } catch (e: any) {
+            logger.error(`Failed to write test results: ${e.message}`);
+        }
     }
 };
