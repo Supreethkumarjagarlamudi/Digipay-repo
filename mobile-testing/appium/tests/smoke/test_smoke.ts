@@ -3,6 +3,8 @@ import { loginPage } from '../../pages/login_page';
 import { homePage } from '../../pages/home_page';
 import { profilePage } from '../../pages/profile_page';
 
+declare const browser: any;
+
 describe('Smoke Testing Suite', () => {
 
     it('TC-SMK-001 [Priority: High, Module: Launch, Feature: App Startup]: Verify app launches successfully without crashing', async () => {

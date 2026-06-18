@@ -6,6 +6,8 @@ import { walletPage } from '../../pages/wallet_page';
 import { paymentPage } from '../../pages/payment_page';
 import { profilePage } from '../../pages/profile_page';
 
+declare const browser: any;
+
 describe('Functional Testing Suite', () => {
 
     it('TC-FUN-001 [Priority: High, Module: Auth, Feature: Customer Role Switch]: Switching roles from merchant to customer resets input states', async () => {

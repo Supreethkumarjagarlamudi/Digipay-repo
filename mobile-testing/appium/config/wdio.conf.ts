@@ -89,6 +89,24 @@ export const config: WebdriverIO.Config = {
         logger.info(`Starting test runner session on Device: ${deviceName}, UDID: ${udid}, iOS: ${platformVersion}`);
     },
 
+    before: async function (capabilities, specs) {
+        const isNavigationSpec = specs && specs.some(spec => spec.includes('test_navigation'));
+        if (!isNavigationSpec) {
+            logger.info("Non-navigation spec detected. Attempting to bypass onboarding...");
+            try {
+                await browser.pause(3000);
+                const skipBtn = await browser.$('~Skip');
+                if (await skipBtn.isDisplayed()) {
+                    await skipBtn.click();
+                    logger.info("Successfully bypassed onboarding via ~Skip");
+                    await browser.pause(1000);
+                }
+            } catch (err: any) {
+                logger.info(`Onboarding bypass bypassed: ${err.message}`);
+            }
+        }
+    },
+
     afterTest: async function (test, context, { error, duration, passed }) {
         const timestamp = new Date().toISOString();
         const cleanName = test.title.replace(/[^a-zA-Z0-9]/g, '_');
