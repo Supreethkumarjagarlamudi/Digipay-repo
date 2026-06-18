@@ -133,10 +133,12 @@ extension HomeView {
                 Text("Hi, \(firstName) 👋")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(AppColors.primaryText)
+                    .accessibilityIdentifier("welcomeText")
                 
                 Text("📍 \(locationManager.city.isEmpty ? "Locating position..." : "\(locationManager.city), \(locationManager.state)")")
                     .font(.subheadline)
                     .foregroundColor(AppColors.secondaryText)
+                    .accessibilityIdentifier("locationText")
             }
             Spacer()
             
@@ -175,6 +177,7 @@ extension HomeView {
                     Text("₹\(remaining, specifier: "%.2f")")
                         .font(.system(size: 36, weight: .bold))
                         .foregroundColor(.white)
+                        .accessibilityIdentifier("remainingBudgetAmount")
                 }
                 Spacer()
                 
@@ -228,6 +231,7 @@ extension HomeView {
                     .background(Color.white.opacity(0.16))
                     .cornerRadius(10)
                 }
+                .accessibilityIdentifier("syncInfoButton")
             }
         }
         .padding(22)
@@ -313,8 +317,10 @@ extension HomeView {
                         .background(AppColors.primaryBlue)
                         .cornerRadius(12)
                     }
+                    .accessibilityIdentifier("payNowBtn")
                 }
             }
+            .accessibilityIdentifier("bestMatchCard")
             .padding(20)
             .background(AppColors.cardBackground)
             .cornerRadius(24)
@@ -375,6 +381,7 @@ extension HomeView {
                             .shadow(color: selectedCategory == category ? AppColors.primaryBlue.opacity(0.2) : Color.clear, radius: 6, y: 3)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("categoryChip_\(category)")
                     }
                 }
                 .padding(.horizontal)
@@ -413,6 +420,7 @@ extension HomeView {
                         .font(.subheadline.bold())
                         .foregroundColor(AppColors.primaryBlue)
                 }
+                .accessibilityIdentifier("viewAllMerchants")
             }
             .padding(.horizontal)
             .sheet(isPresented: $showAllMerchants) {
@@ -478,5 +486,6 @@ extension HomeView {
         .background(AppColors.cardBackground)
         .cornerRadius(18)
         .padding(.horizontal)
+        .accessibilityIdentifier("merchantCard_\(merchant.business_name)")
     }
 }

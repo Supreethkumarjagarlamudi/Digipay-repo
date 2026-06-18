@@ -112,13 +112,15 @@ struct MerchantBasicInfoView: View {
                             MerchantTextField(
                                 title: "Business Name *",
                                 placeholder: "Supreeth Grocery Store",
-                                text: $businessName
+                                text: $businessName,
+                                accessibilityId: "merchantNameInput"
                             )
 
                             MerchantTextField(
                                 title: "Owner Name *",
                                 placeholder: "Supreeth Kumar",
-                                text: $ownerName
+                                text: $ownerName,
+                                accessibilityId: "merchantOwnerNameInput"
                             )
 
                             VStack(
@@ -149,9 +151,11 @@ struct MerchantBasicInfoView: View {
 
                                         Text(category)
                                             .tag(category)
+                                            .accessibilityIdentifier("categoryOption_\(category)")
                                     }
                                 }
                                 .pickerStyle(.menu)
+                                .accessibilityIdentifier("merchantCategoryPicker")
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(
@@ -163,7 +167,8 @@ struct MerchantBasicInfoView: View {
                             MerchantTextField(
                                 title: "GST Number (Optional)",
                                 placeholder: "29ABCDE1234F1Z5",
-                                text: $gstNumber
+                                text: $gstNumber,
+                                accessibilityId: "merchantGstInput"
                             )
 
                             VStack(
@@ -192,6 +197,7 @@ struct MerchantBasicInfoView: View {
                                 TextEditor(
                                     text: $businessDescription
                                 )
+                                .accessibilityIdentifier("merchantDescriptionInput")
                                 .frame(
                                     minHeight: 120,
                                     maxHeight: 120
@@ -246,6 +252,7 @@ struct MerchantBasicInfoView: View {
                                     y: 6
                                 )
                         }
+                        .accessibilityIdentifier("merchantRegisterSubmit")
                         .padding(.horizontal, 24)
                         .opacity(
                             isFormValid ? 1 : 0.85
@@ -283,6 +290,7 @@ struct MerchantTextField: View {
     let placeholder: String
 
     @Binding var text: String
+    var accessibilityId: String = ""
 
     var body: some View {
 
@@ -298,6 +306,7 @@ struct MerchantTextField: View {
                 placeholder,
                 text: $text
             )
+            .accessibilityIdentifier(accessibilityId)
             .padding()
             .background(
                 AppColors.cardBackground

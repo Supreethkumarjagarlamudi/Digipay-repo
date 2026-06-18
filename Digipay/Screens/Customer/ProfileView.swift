@@ -75,6 +75,7 @@ struct ProfileView: View {
             // Budget Edit dialog
             .alert("Edit Monthly Budget", isPresented: $showBudgetAlert) {
                 TextField("Budget limit (₹)", text: $budgetInput)
+                    .accessibilityIdentifier("profileBudgetInput")
                     .keyboardType(.decimalPad)
                 Button("Save") {
                     if let val = Double(budgetInput), val > 0 {
@@ -486,6 +487,7 @@ extension ProfileView {
 
             .cornerRadius(18)
         }
+        .accessibilityIdentifier("logoutProfileButton")
         .padding(.top, 12)
     }
 

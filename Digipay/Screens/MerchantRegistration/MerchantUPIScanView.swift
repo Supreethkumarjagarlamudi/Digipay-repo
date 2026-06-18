@@ -104,6 +104,21 @@ struct MerchantUPIScanView: View {
                     }
                     .padding(.horizontal)
 
+                    #if targetEnvironment(simulator)
+                    Button {
+                        scannedCode = "upi://pay?pa=merchant@upi&pn=SupreethStore&am=0.00"
+                    } label: {
+                        Text("Mock Scan QR (Simulator)")
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 58)
+                            .background(Color.orange)
+                            .cornerRadius(18)
+                    }
+                    .accessibilityIdentifier("mockScanQrButton")
+                    .padding(.horizontal)
+                    #endif
+
                     if !scannedCode.isEmpty {
 
                         Text(

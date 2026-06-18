@@ -103,6 +103,7 @@ struct OTPView: View {
                         .focused($isFocused)
 
                         .opacity(0.01)
+                        .accessibilityIdentifier("otpInputField")
 
                     HStack(spacing: 12) {
 
@@ -150,6 +151,7 @@ struct OTPView: View {
                         Text(authVM.errorMessage)
 
                     }
+                    .accessibilityIdentifier("otpErrorMessage")
 
                     .foregroundColor(.red)
 
@@ -176,6 +178,15 @@ struct OTPView: View {
                     .foregroundColor(
                         AppColors.secondaryText
                     )
+                
+                Button("Resend OTP") {
+                    Task {
+                        await authVM.sendOTP(phoneNumber: phoneNumber)
+                    }
+                }
+                .accessibilityIdentifier("resendOtpLink")
+                .font(.subheadline)
+                .foregroundColor(AppColors.primaryBlue)
 
                 Spacer()
 

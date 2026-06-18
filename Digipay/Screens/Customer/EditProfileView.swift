@@ -42,6 +42,7 @@ struct EditProfileView: View {
                                         .foregroundColor(AppColors.primaryText)
                                     
                                     TextField("Enter your name", text: $fullName)
+                                        .accessibilityIdentifier("profileNameInput")
                                         .padding()
                                         .background(AppColors.cardBackground)
                                         .cornerRadius(16)
@@ -59,6 +60,7 @@ struct EditProfileView: View {
                                         .foregroundColor(AppColors.primaryText)
                                     
                                     TextField("example@gmail.com", text: $email)
+                                        .accessibilityIdentifier("profileEmailInput")
                                         .keyboardType(.emailAddress)
                                         .textInputAutocapitalization(.never)
                                         .padding()
@@ -106,6 +108,7 @@ struct EditProfileView: View {
                                 .cornerRadius(18)
                             }
                             .disabled(fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
+                            .accessibilityIdentifier("saveProfileButton")
                             .padding(.horizontal, 24)
                             .padding(.top, 8)
                             

@@ -132,6 +132,7 @@ struct RoleSelectionView: View {
                         .cornerRadius(18)
                     }
                     .disabled(selectedRole == nil)
+                    .accessibilityIdentifier("loginSubmitButton")
                     .padding(.horizontal, 24)
 
                     Spacer()
@@ -293,6 +294,7 @@ struct RoleSelectionView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(role == .customer ? "roleCustomerButton" : "roleMerchantButton")
     }
 }
 

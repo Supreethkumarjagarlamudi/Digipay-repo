@@ -3,6 +3,7 @@ import SwiftUI
 struct WalletView: View {
     @StateObject private var walletVM = WalletViewModel()
     @EnvironmentObject private var session: SessionManager
+    @State private var showAddExpenseSheet = false
 
     var body: some View {
         NavigationStack {
@@ -68,6 +69,9 @@ struct WalletView: View {
                     await walletVM.loadAnalytics()
                 }
             }
+            .sheet(isPresented: $showAddExpenseSheet) {
+                AddExpenseView(walletVM: walletVM)
+            }
         }
     }
 }
@@ -85,6 +89,17 @@ extension WalletView {
                     .foregroundColor(AppColors.secondaryText)
             }
             Spacer()
+            
+            Button {
+                showAddExpenseSheet = true
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .foregroundColor(AppColors.primaryBlue)
+                    .font(.title2)
+            }
+            .accessibilityIdentifier("addExpenseBtn")
+            .padding(.trailing, 8)
+            
             Circle()
                 .fill(AppColors.primaryBlue.opacity(0.12))
                 .frame(width: 44, height: 44)
@@ -182,6 +197,7 @@ extension WalletView {
             Text(value)
                 .font(.title3.bold())
                 .foregroundColor(AppColors.primaryText)
+                .accessibilityIdentifier(title == "Total Spent" ? "totalSpentText" : (title == "Monthly Budget" ? "profileBudgetInput" : ""))
             
             Text(title)
                 .font(.caption2)
@@ -220,6 +236,7 @@ extension WalletView {
                 }
             }
             .frame(height: 10)
+            .accessibilityIdentifier("budgetProgressBar")
             
             HStack {
                 Text(walletVM.budgetProgress > 0.9 ? "Warning: Critical limit reached!" : (walletVM.budgetProgress > 0.7 ? "Approaching limit threshold" : "Budget status healthy"))
@@ -500,6 +517,7 @@ extension WalletView {
                 }
             }
         }
+        .accessibilityIdentifier("transactionList")
     }
 
     private func getCategoryIcon(_ cat: String) -> String {
@@ -640,5 +658,138 @@ struct PieSliceShape: Shape {
         let radius = min(rect.width, rect.height) / 2
         path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
         return path
+    }
+}
+
+struct AddExpenseView: View {
+    @ObservedObject var walletVM: WalletViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var title = ""
+    @State private var amount = ""
+    @State private var selectedCategory = "Cafe"
+    @State private var isSaving = false
+    @State private var errorMessage = ""
+    
+    let categories = ["Cafe", "Food", "Shopping", "Medical", "Transport", "Bills", "Entertainment", "Education"]
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppColors.primaryBackground
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Expense Title")
+                            .fontWeight(.semibold)
+                        TextField("Enter title (e.g., Coffee)", text: $title)
+                            .accessibilityIdentifier("expenseTitleField")
+                            .padding()
+                            .background(AppColors.cardBackground)
+                            .cornerRadius(12)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Amount (₹)")
+                            .fontWeight(.semibold)
+                        TextField("0.00", text: $amount)
+                            .accessibilityIdentifier("expenseAmountField")
+                            .keyboardType(.decimalPad)
+                            .padding()
+                            .background(AppColors.cardBackground)
+                            .cornerRadius(12)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Category")
+                            .fontWeight(.semibold)
+                        
+                        Menu {
+                            ForEach(categories, id: \.self) { cat in
+                                Button(cat) {
+                                    selectedCategory = cat
+                                }
+                                .accessibilityIdentifier("categoryOption_\(cat)")
+                            }
+                        } label: {
+                            HStack {
+                                Text(selectedCategory)
+                                    .foregroundColor(AppColors.primaryText)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                            }
+                            .padding()
+                            .background(AppColors.cardBackground)
+                            .cornerRadius(12)
+                        }
+                        .accessibilityIdentifier("expenseCategoryPicker")
+                    }
+                    
+                    if !errorMessage.isEmpty {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                    }
+                    
+                    Button(action: saveExpense) {
+                        HStack {
+                            if isSaving {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Text("Save Expense")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(title.isEmpty || amount.isEmpty ? Color.gray.opacity(0.4) : AppColors.primaryBlue)
+                        .cornerRadius(14)
+                    }
+                    .disabled(title.isEmpty || amount.isEmpty || isSaving)
+                    .accessibilityIdentifier("saveExpenseBtn")
+                    
+                    Spacer()
+                }
+                .padding(24)
+            }
+            .navigationTitle("Add Custom Expense")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func saveExpense() {
+        guard let amt = Double(amount), amt > 0 else {
+            errorMessage = "Please enter a valid amount"
+            return
+        }
+        isSaving = true
+        Task {
+            do {
+                _ = try await WalletService.shared.createTransaction(
+                    merchantName: title,
+                    amount: amt,
+                    category: selectedCategory,
+                    latitude: nil,
+                    longitude: nil,
+                    heading: nil,
+                    speed: nil
+                )
+                NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionCreated"), object: nil)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isSaving = false
+        }
     }
 }

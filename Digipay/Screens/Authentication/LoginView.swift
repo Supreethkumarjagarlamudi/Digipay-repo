@@ -153,9 +153,14 @@ struct LoginView: View {
                                 )
 
                             TextField(
+
                                 "9876543210",
+
                                 text: $phoneNumber
+
                             )
+
+                            .accessibilityIdentifier("mobileNumberInput")
 
                             .keyboardType(.numberPad)
 
@@ -204,6 +209,7 @@ struct LoginView: View {
                     if !authVM.errorMessage.isEmpty {
 
                         Text(authVM.errorMessage)
+                            .accessibilityIdentifier("loginErrorMessage")
 
                             .font(.caption)
 
@@ -281,6 +287,7 @@ struct LoginView: View {
                         .cornerRadius(18)
 
                     }
+                    .accessibilityIdentifier("loginSubmitButton")
                     .padding(.horizontal)
 
 

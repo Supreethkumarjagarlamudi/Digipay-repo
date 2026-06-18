@@ -68,6 +68,7 @@ struct ProfileSetupView: View {
                                     "Enter your name",
                                     text: $fullName
                                 )
+                                .accessibilityIdentifier("profileNameInput")
                                 .padding()
                                 .background(
                                     AppColors.cardBackground
@@ -87,6 +88,7 @@ struct ProfileSetupView: View {
                                     "example@gmail.com",
                                     text: $email
                                 )
+                                .accessibilityIdentifier("profileEmailInput")
                                 .keyboardType(.emailAddress)
                                 .textInputAutocapitalization(.never)
                                 .padding()
@@ -147,6 +149,7 @@ struct ProfileSetupView: View {
                             .cornerRadius(18)
                         }
                         .disabled(fullName.isEmpty || isLoading)
+                        .accessibilityIdentifier("saveProfileButton")
                         .padding(.horizontal, 24)
 
                         Spacer()

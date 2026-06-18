@@ -109,8 +109,16 @@ export const config: WebdriverIO.Config = {
 
     afterTest: async function (test, context, { error, duration, passed }) {
         const timestamp = new Date().toISOString();
+        let suiteName = 'default_suite';
+        if (test.parent) {
+            if (typeof test.parent === 'string') {
+                suiteName = test.parent;
+            } else if (typeof test.parent === 'object' && (test.parent as any).title) {
+                suiteName = (test.parent as any).title;
+            }
+        }
+        const cleanSuiteName = suiteName.replace(/[^a-zA-Z0-9]/g, '_');
         const cleanName = test.title.replace(/[^a-zA-Z0-9]/g, '_');
-        const suiteName = test.parent || 'default_suite';
         let screenshotPath = '';
 
         let status: 'PASSED' | 'FAILED' | 'SKIPPED' = passed ? 'PASSED' : 'FAILED';
@@ -119,7 +127,7 @@ export const config: WebdriverIO.Config = {
         }
 
         if (!passed && !test.pending) {
-            const filename = `${suiteName}_${cleanName}_${Date.now()}.png`;
+            const filename = `${cleanSuiteName}_${cleanName}_${Date.now()}.png`;
             const fullPath = path.join(reportsDir, 'screenshots', filename);
             try {
                 await browser.saveScreenshot(fullPath);

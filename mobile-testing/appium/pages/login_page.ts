@@ -11,10 +11,12 @@ export class LoginPage extends BasePage {
     // Actions
     public async selectCustomerRole() {
         await this.click(this.customerRoleButton);
+        await this.click(this.loginButton);
     }
 
     public async selectMerchantRole() {
         await this.click(this.merchantRoleButton);
+        await this.click(this.loginButton);
     }
 
     public async enterMobileNumber(mobile: string) {

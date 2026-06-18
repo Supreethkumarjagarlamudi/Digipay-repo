@@ -12,6 +12,8 @@ struct AmountEntryView: View {
     @State private var isProcessing = false
     @State private var showSuccessAnimation = false
     @State private var errorMessage: String? = nil
+    @State private var notes: String = ""
+    @State private var showFailureAlert = false
 
     private let presetAmounts = [100.0, 200.0, 500.0, 1000.0]
 
@@ -68,7 +70,7 @@ struct AmountEntryView: View {
                                 .cornerRadius(18)
                                 .shadow(color: isValidAmount ? AppColors.primaryBlue.opacity(0.3) : Color.clear, radius: 10, x: 0, y: 5)
                             }
-                            .disabled(!isValidAmount)
+                            .accessibilityIdentifier("proceedToPayButton")
                             .padding(.horizontal, 24)
                             
                             Text("Secure payment routed via \(session.defaultUPIApp)")
@@ -112,10 +114,25 @@ struct AmountEntryView: View {
                             Text("₹\(String(format: "%.2f", parsedAmount)) sent to \(merchant.business_name)")
                                 .font(.subheadline)
                                 .foregroundColor(.white.opacity(0.8))
+                            
+                            Button {
+                                dismiss()
+                            } label: {
+                                Text("Done")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                                    .background(AppColors.primaryBlue)
+                                    .cornerRadius(12)
+                            }
+                            .accessibilityIdentifier("closeSuccessModalBtn")
+                            .padding(.top, 8)
                         }
                         .padding(30)
                         .background(AppColors.cardBackground)
                         .cornerRadius(24)
+                        .accessibilityIdentifier("paymentSuccessModal")
                     } else {
                         ProgressView()
                             .tint(.white)
@@ -128,6 +145,47 @@ struct AmountEntryView: View {
                 }
                 .transition(.opacity)
                 .zIndex(2)
+            }
+
+            // Failure Custom Alert Modal
+            if showFailureAlert {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                
+                VStack(spacing: 24) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(AppColors.errorRed)
+                    
+                    Text("Payment Failed")
+                        .font(.title3.bold())
+                        .foregroundColor(AppColors.primaryText)
+                    
+                    Text(errorMessage ?? "An error occurred while processing your payment.")
+                        .font(.subheadline)
+                        .foregroundColor(AppColors.secondaryText)
+                        .multilineTextAlignment(.center)
+                    
+                    Button {
+                        showFailureAlert = false
+                    } label: {
+                        Text("Dismiss")
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(AppColors.primaryBlue)
+                            .cornerRadius(14)
+                    }
+                    .accessibilityIdentifier("closeFailureModalBtn")
+                }
+                .padding(24)
+                .background(AppColors.cardBackground)
+                .cornerRadius(24)
+                .accessibilityIdentifier("paymentFailureModal")
+                .padding(.horizontal, 40)
+                .zIndex(3)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -204,24 +262,39 @@ struct AmountEntryView: View {
     }
 
     private var inputSection: some View {
-        VStack(spacing: 12) {
-            Text("Enter Amount")
-                .font(.subheadline)
-                .foregroundColor(AppColors.secondaryText)
-            
-            HStack(spacing: 4) {
-                Text("₹")
-                    .font(.system(size: 44, weight: .bold))
-                    .foregroundColor(AppColors.primaryText)
+        VStack(spacing: 16) {
+            VStack(spacing: 8) {
+                Text("Enter Amount")
+                    .font(.subheadline)
+                    .foregroundColor(AppColors.secondaryText)
                 
-                TextField("0", text: $amountString)
-                    .keyboardType(.decimalPad)
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundColor(AppColors.primaryText)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: 240)
+                HStack(spacing: 4) {
+                    Text("₹")
+                        .font(.system(size: 44, weight: .bold))
+                        .foregroundColor(AppColors.primaryText)
+                    
+                    TextField("0", text: $amountString)
+                        .accessibilityIdentifier("paymentAmountInput")
+                        .keyboardType(.decimalPad)
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundColor(AppColors.primaryText)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: 240)
+                }
             }
-            .padding(.horizontal)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Notes (Optional)")
+                    .font(.caption)
+                    .foregroundColor(AppColors.secondaryText)
+                
+                TextField("Add notes", text: $notes)
+                    .accessibilityIdentifier("paymentNotesInput")
+                    .padding()
+                    .background(AppColors.cardBackground)
+                    .cornerRadius(12)
+            }
+            .padding(.horizontal, 24)
         }
     }
 
@@ -317,6 +390,11 @@ struct AmountEntryView: View {
     }
 
     private func initiatePayment() {
+        guard isValidAmount else {
+            errorMessage = "Please enter a valid amount greater than zero"
+            showFailureAlert = true
+            return
+        }
         let finalDeepLink = updateUPIAmount(deepLink: merchant.upi_deep_link, amount: parsedAmount)
         UPIManager.shared.openUPILink(deepLink: finalDeepLink, preferredApp: session.defaultUPIApp)
         
