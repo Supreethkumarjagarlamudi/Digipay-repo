@@ -140,19 +140,97 @@ jobs:
           cd mobile-testing/appium
           npm run test || echo "⚠️ Some tests failed, proceeding to report compilation step..."
 
-      - name: 📊 Compile Excel and PDF Reports
+      - name: 📦 Install Python Report Dependencies
+        run: pip3 install openpyxl --quiet
+
+      - name: 📊 Generate Excel Test Report
+        if: always()
         run: |
           cd mobile-testing/appium
-          npm run generate-reports
+          python3 scripts/generate_excel_report.py || echo "⚠️ Excel report generation failed, continuing..."
 
-      - name: 📤 Upload Test Reports and Logs
+      - name: 📋 Post Test Summary to GitHub Actions
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, sys
+          from datetime import datetime
+
+          json_path = "mobile-testing/appium/reports/json/test_results.json"
+          if not os.path.exists(json_path):
+              print("No JSON results found.")
+              sys.exit(0)
+
+          with open(json_path) as f:
+              tests = json.load(f)
+
+          total   = len(tests)
+          passed  = sum(1 for t in tests if t.get("status") == "PASSED")
+          failed  = total - passed
+          rate    = f"{passed/total*100:.1f}%" if total else "N/A"
+          badge   = "✅" if failed == 0 else "❌"
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/stdout")
+          with open(summary_path, "w") as out:
+              out.write(f"# {badge} Digipay — iOS Mobile Test Report\n\n")
+              out.write(f"> **Branch:** `{os.environ.get('GITHUB_REF_NAME','unknown')}` &nbsp;|&nbsp; ")
+              out.write(f"**Run:** #{os.environ.get('GITHUB_RUN_NUMBER','?')} &nbsp;|&nbsp; ")
+              out.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')} UTC\n\n")
+              out.write("## 📊 Test Execution Summary\n\n")
+              out.write("| Metric | Value |\n|--------|-------|\n")
+              out.write(f"| 🔢 Total Tests | **{total}** |\n")
+              out.write(f"| ✅ Passed      | **{passed}** |\n")
+              out.write(f"| ❌ Failed      | **{failed}** |\n")
+              out.write(f"| 📊 Pass Rate   | **{rate}** |\n")
+              out.write(f"| 📱 Platform    | iOS Simulator |\n")
+              out.write(f"| 🛠 Framework   | Appium + WebdriverIO |\n\n")
+
+              # Suite breakdown
+              suites = {}
+              for t in tests:
+                  s = t.get("suite", "Unknown")
+                  if s not in suites: suites[s] = {"pass": 0, "fail": 0}
+                  suites[s]["pass" if t.get("status") == "PASSED" else "fail"] += 1
+
+              out.write("## 📂 Results by Suite\n\n")
+              out.write("| Suite | Total | ✅ Passed | ❌ Failed | Status |\n")
+              out.write("|-------|------:|----------:|----------:|--------|\n")
+              for suite, data in sorted(suites.items()):
+                  st = data["pass"] + data["fail"]
+                  status = "✅ PASS" if data["fail"] == 0 else f"❌ {data['fail']} FAIL"
+                  out.write(f"| {suite} | {st} | {data['pass']} | {data['fail']} | {status} |\n")
+              out.write("\n")
+
+              if failed == 0:
+                  out.write("## 🎉 All Tests Passed!\n\n")
+                  out.write("> 100% pass rate achieved across all suites. 🚀\n\n")
+              else:
+                  out.write("## ❌ Failed Tests\n\n")
+                  out.write("| Test Case ID | Suite | Description |\n|---|---|---|\n")
+                  for t in tests:
+                      if t.get("status") != "PASSED":
+                          name = t.get("name", "")
+                          import re
+                          m = re.search(r"(TC-\w+-\d+).*?:\s+(.+)", name)
+                          tc_id = m.group(1) if m else "—"
+                          desc  = m.group(2)[:80] if m else name[:80]
+                          out.write(f"| {tc_id} | {t.get('suite','—')} | {desc} |\n")
+                  out.write("\n")
+
+              out.write("---\n_📥 Download the full `.xlsx` report from the **Artifacts** section._\n")
+
+          print(f"✅ Job summary written: {total} tests, {passed} passed, {failed} failed")
+          PYEOF
+
+      - name: 📤 Upload Test Reports and Artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: Digipay-E2E-Execution-Artifacts
+          name: Digipay-iOS-Test-Report-${{ github.run_number }}
           path: |
-            mobile-testing/appium/reports/excel/test_analytics.xlsx
-            mobile-testing/appium/reports/pdf/executive_summary.pdf
-            mobile-testing/appium/reports/screenshots/
-            mobile-testing/appium/reports/logs/
+            mobile-testing/appium/reports/Digipay_Test_Report.xlsx
             mobile-testing/appium/reports/json/test_results.json
+            mobile-testing/appium/reports/screenshots/
+            mobile-testing/appium/appium.log
+          retention-days: 30
           if-no-files-found: warn

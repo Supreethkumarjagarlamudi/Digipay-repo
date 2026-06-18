@@ -55,6 +55,7 @@ struct OnboardingView: View {
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(AppColors.primaryBlue)
                     }
+                    .accessibilityIdentifier("Skip")
                 }
                 .padding(.horizontal, 28)
                 .padding(.top, 14)

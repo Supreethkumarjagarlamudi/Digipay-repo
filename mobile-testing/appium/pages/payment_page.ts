@@ -9,6 +9,7 @@ export class PaymentPage extends BasePage {
     public get successAlert() { return '~paymentSuccessModal'; }
     public get failureAlert() { return '~paymentFailureModal'; }
     public get closeSuccessButton() { return '~closeSuccessModalBtn'; }
+    public get closeFailureButton() { return '~closeFailureModalBtn'; }
 
     // Actions
     public async fillPaymentDetails(amount: string, notes: string) {
@@ -30,6 +31,10 @@ export class PaymentPage extends BasePage {
 
     public async closeSuccess() {
         await this.click(this.closeSuccessButton);
+    }
+
+    public async closeFailure() {
+        await this.click(this.closeFailureButton);
     }
 }
 export const paymentPage = new PaymentPage();

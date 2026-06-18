@@ -17,11 +17,37 @@ createDirectory(path.join(reportsDir, 'excel'));
 createDirectory(path.join(reportsDir, 'json'));
 createDirectory(path.join(reportsDir, 'pdf'));
 
-// Initialize runtime variables
-const appPath = process.env.APP_PATH || path.join(__dirname, '../../../../Library/Developer/Xcode/DerivedData/Digipay-bpuxypzotjfvbdftrwkftqzuqnfy/Build/Products/Debug-iphonesimulator/Digipay.app');
-const udid = process.env.SIMULATOR_UDID || '';
-const platformVersion = process.env.IOS_VERSION || '18.2';
-const deviceName = process.env.IOS_DEVICE_NAME || 'iPhone 16';
+// ─── Device Mode ─────────────────────────────────────────────────────────────
+// Set DEVICE=real to test on connected iPhone, or leave unset for simulator.
+const isRealDevice = process.env.DEVICE === 'real';
+
+// ─── Physical Device Config ───────────────────────────────────────────────────
+const REAL_DEVICE_UDID    = process.env.DEVICE_UDID   || '00008140-0002301626FB001C';  // iPhone 16 Pro Max
+const REAL_DEVICE_NAME    = process.env.DEVICE_NAME   || 'Supreeth kumar\'s iPhone';
+const REAL_IOS_VERSION    = process.env.IOS_VERSION   || '26.5';
+const REAL_APP_PATH       = process.env.APP_PATH      || path.join('/Users/supreethkumarjagarlamudi/Library/Developer/Xcode/DerivedData/Build/Products/Debug-iphoneos/Digipay.app');
+
+// ─── Simulator Config ─────────────────────────────────────────────────────────
+const SIM_UDID            = process.env.SIMULATOR_UDID || '42583C5A-BB47-45FB-A0DE-B007BFC9FA60';
+const SIM_DEVICE_NAME     = process.env.IOS_DEVICE_NAME || 'iPhone 17';
+const SIM_IOS_VERSION     = process.env.IOS_VERSION   || '18.6';
+const SIM_APP_PATH        = process.env.APP_PATH      || path.join('/Users/supreethkumarjagarlamudi/Library/Developer/Xcode/DerivedData/Build/Products/Debug-iphonesimulator/Digipay.app');
+
+// ─── Active Values ────────────────────────────────────────────────────────────
+const appPath       = isRealDevice ? REAL_APP_PATH    : SIM_APP_PATH;
+const udid          = isRealDevice ? REAL_DEVICE_UDID : SIM_UDID;
+const platformVersion = isRealDevice ? REAL_IOS_VERSION : SIM_IOS_VERSION;
+const deviceName    = isRealDevice ? REAL_DEVICE_NAME : SIM_DEVICE_NAME;
+
+// Simulator-only: permissions are pre-granted via xcrun simctl privacy in beforeSession, so we do not use appium:permissions (which requires applesimutils)
+const simulatorPermissions = {};
+
+// Real device only: code signing (WDA must be signed)
+const realDeviceExtras = isRealDevice ? {
+    'appium:xcodeOrgId': process.env.XCODE_ORG_ID || '8KLF3MC9TN',
+    'appium:xcodeSigningId': 'iPhone Developer',
+    'appium:updatedWDABundleId': 'com.supreethKumarj.WebDriverAgentRunner',
+} : {};
 
 interface TestResult {
     id: string;
@@ -57,13 +83,15 @@ export const config: WebdriverIO.Config = {
         'appium:newCommandTimeout': 240,
         'appium:wdaLaunchTimeout': 180000,
         'appium:wdaConnectionTimeout': 180000,
-        'appium:autoAcceptAlerts': true,
-        'appium:relaxedSecurityEnabled': true
+        'appium:autoAcceptAlerts': false,
+        'appium:relaxedSecurityEnabled': true,
+        ...simulatorPermissions,
+        ...realDeviceExtras
     } as any],
     logLevel: 'info',
     bail: 0,
     baseUrl: 'http://127.0.0.1',
-    waitforTimeout: 10000,
+    waitforTimeout: 30000,
     connectionRetryTimeout: 120000,
     connectionRetryCount: 3,
     services: [],
@@ -71,7 +99,7 @@ export const config: WebdriverIO.Config = {
     reporters: ['spec'],
     mochaOpts: {
         ui: 'bdd',
-        timeout: 60000
+        timeout: 120000
     },
     
     suites: {
@@ -86,7 +114,23 @@ export const config: WebdriverIO.Config = {
     },
 
     beforeSession: function () {
-        logger.info(`Starting test runner session on Device: ${deviceName}, UDID: ${udid}, iOS: ${platformVersion}`);
+        const { execSync } = require('child_process');
+        const bundleId = 'com.supreethKumarj.Digipay';
+        const simulatorUdid = udid || '42583C5A-BB47-45FB-A0DE-B007BFC9FA60';
+        // Pre-grant location and notification permissions so dialogs never appear during tests
+        try {
+            execSync(`xcrun simctl privacy ${simulatorUdid} grant location-always ${bundleId}`, { stdio: 'ignore' });
+            logger.info(`Pre-granted location-always for ${bundleId}`);
+        } catch (e: any) {
+            logger.info(`simctl location grant skipped: ${e.message}`);
+        }
+        try {
+            execSync(`xcrun simctl privacy ${simulatorUdid} grant notifications ${bundleId}`, { stdio: 'ignore' });
+            logger.info(`Pre-granted notifications for ${bundleId}`);
+        } catch (e: any) {
+            logger.info(`simctl notifications grant skipped: ${e.message}`);
+        }
+        logger.info(`Starting test runner session on Device: ${deviceName}, UDID: ${simulatorUdid}, iOS: ${platformVersion}`);
     },
 
     before: async function (capabilities, specs) {
@@ -103,6 +147,29 @@ export const config: WebdriverIO.Config = {
                 }
             } catch (err: any) {
                 logger.info(`Onboarding bypass bypassed: ${err.message}`);
+            }
+
+            // Dismiss any lingering system alerts (location, notifications) that Appium
+            // did not catch via appium:permissions — tap 'Allow While Using App' if present
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const allowBtn = await browser.$('-ios predicate string:label == "Allow While Using App" AND type == "XCUIElementTypeButton"');
+                    if (await allowBtn.isDisplayed()) {
+                        await allowBtn.click();
+                        logger.info('Dismissed location dialog: Allow While Using App');
+                        await browser.pause(500);
+                        continue;
+                    }
+                } catch (e) {}
+                try {
+                    const allowOnce = await browser.$('-ios predicate string:label == "Allow Once" AND type == "XCUIElementTypeButton"');
+                    if (await allowOnce.isDisplayed()) {
+                        await allowOnce.click();
+                        logger.info('Dismissed location dialog: Allow Once');
+                        await browser.pause(500);
+                    }
+                } catch (e) {}
+                break;
             }
         }
     },

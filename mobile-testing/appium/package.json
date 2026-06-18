@@ -6,6 +6,10 @@
   "scripts": {
     "clean": "rimraf reports/ screenshots/ logs/ dist/",
     "compile": "tsc",
+
+    "build:sim": "xcodebuild build -project ../../Digipay.xcodeproj -scheme Digipay -sdk iphonesimulator -destination 'id=42583C5A-BB47-45FB-A0DE-B007BFC9FA60' -derivedDataPath ~/Library/Developer/Xcode/DerivedData ONLY_ACTIVE_ARCH=NO CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO | tail -3",
+    "build:device": "xcodebuild build -project ../../Digipay.xcodeproj -scheme Digipay -sdk iphoneos -destination 'id=00008140-0002301626FB001C' -derivedDataPath ~/Library/Developer/Xcode/DerivedData | tail -3",
+
     "test": "npx wdio run config/wdio.conf.ts",
     "test:smoke": "npx wdio run config/wdio.conf.ts --suite smoke",
     "test:functional": "npx wdio run config/wdio.conf.ts --suite functional",
@@ -15,7 +19,15 @@
     "test:regression": "npx wdio run config/wdio.conf.ts --suite regression",
     "test:performance": "npx wdio run config/wdio.conf.ts --suite performance",
     "test:accessibility": "npx wdio run config/wdio.conf.ts --suite accessibility",
-    "generate-reports": "ts-node utilities/report_compiler.ts"
+
+    "test:real": "DEVICE=real npx wdio run config/wdio.conf.ts",
+    "test:smoke:real": "DEVICE=real npx wdio run config/wdio.conf.ts --suite smoke",
+    "test:functional:real": "DEVICE=real npx wdio run config/wdio.conf.ts --suite functional",
+    "test:regression:real": "DEVICE=real npx wdio run config/wdio.conf.ts --suite regression",
+
+    "generate-reports": "ts-node utilities/report_compiler.ts",
+    "report:excel": "python3 scripts/generate_excel_report.py",
+    "test:ci": "npx wdio run config/wdio.conf.ts; python3 scripts/generate_excel_report.py"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
