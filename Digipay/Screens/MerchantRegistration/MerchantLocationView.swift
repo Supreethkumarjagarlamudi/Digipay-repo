@@ -112,6 +112,7 @@ struct MerchantLocationView: View {
 
                                 ProgressView()
                                     .scaleEffect(1.4)
+                                    .accessibilityIdentifier("locationStatusSpinner")
 
                                 Text(
                                     "Detecting Location..."
@@ -214,6 +215,7 @@ struct MerchantLocationView: View {
                                     value:
                                         "\(Int(locationManager.altitude)) m"
                                 )
+                                .accessibilityIdentifier("altitudeChip")
 
                                 ContextChip(
                                     title:
@@ -221,6 +223,7 @@ struct MerchantLocationView: View {
                                     value:
                                         "\(Int(locationManager.accuracy)) m"
                                 )
+                                .accessibilityIdentifier("accuracyChip")
 
                                 ContextChip(
                                     title:
@@ -228,6 +231,7 @@ struct MerchantLocationView: View {
                                     value:
                                         "\(Int(locationManager.heading))°"
                                 )
+                                .accessibilityIdentifier("headingChip")
 
                                 ContextChip(
                                     title:
@@ -235,6 +239,7 @@ struct MerchantLocationView: View {
                                     value:
                                         "\(Int(locationManager.speed)) m/s"
                                 )
+                                .accessibilityIdentifier("speedChip")
                             }
                             .padding(.horizontal)
                         }
@@ -281,6 +286,7 @@ struct MerchantLocationView: View {
                                     y: 6
                                 )
                         }
+                        .accessibilityIdentifier("continueLocationButton")
                         .padding(.horizontal)
                         .disabled(
                             !locationManager

@@ -102,6 +102,7 @@ struct MerchantUPIScanView: View {
                             )
                             .cornerRadius(18)
                     }
+                    .accessibilityIdentifier("openScannerButton")
                     .padding(.horizontal)
 
                     #if targetEnvironment(simulator)
@@ -193,6 +194,7 @@ struct MerchantUPIScanView: View {
                                 .cornerRadius(18)
                             }
                         }
+                        .accessibilityIdentifier("completeMerchantRegistrationButton")
                         .padding(.horizontal)
                     }
                 }

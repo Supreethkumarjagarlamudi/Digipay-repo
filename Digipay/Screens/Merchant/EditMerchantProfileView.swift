@@ -42,6 +42,7 @@ struct EditMerchantProfileView: View {
                         }
                         .foregroundColor(AppColors.primaryBlue)
                     }
+                    .accessibilityIdentifier("editProfileBackButton")
                     Spacer()
                     Text("Edit Shop Details")
                         .font(.headline)
@@ -63,8 +64,8 @@ struct EditMerchantProfileView: View {
                                 .foregroundColor(AppColors.primaryText)
                             
                             VStack(spacing: 12) {
-                                inputField(label: "Business Name", text: $businessName, placeholder: "e.g. Starbucks Corner")
-                                inputField(label: "Owner Name", text: $ownerName, placeholder: "e.g. Sanjay Gupta")
+                                inputField(label: "Business Name", text: $businessName, placeholder: "e.g. Starbucks Corner", accessibilityId: "editMerchantBusinessNameInput")
+                                inputField(label: "Owner Name", text: $ownerName, placeholder: "e.g. Sanjay Gupta", accessibilityId: "editMerchantOwnerNameInput")
                                 
                                 // Category Selector
                                 VStack(alignment: .leading, spacing: 6) {
@@ -79,6 +80,7 @@ struct EditMerchantProfileView: View {
                                         }
                                     }
                                     .pickerStyle(.menu)
+                                    .accessibilityIdentifier("editMerchantCategoryPicker")
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.vertical, 8)
                                     .padding(.horizontal, 12)
@@ -86,8 +88,8 @@ struct EditMerchantProfileView: View {
                                     .cornerRadius(12)
                                 }
                                 
-                                inputField(label: "GST Number (Optional)", text: $gstNumber, placeholder: "e.g. 29AAAAA1111A1Z1")
-                                inputField(label: "Description (Optional)", text: $descriptionText, placeholder: "e.g. Gourmet bakery and hot coffee.")
+                                inputField(label: "GST Number (Optional)", text: $gstNumber, placeholder: "e.g. 29AAAAA1111A1Z1", accessibilityId: "editMerchantGstInput")
+                                inputField(label: "Description (Optional)", text: $descriptionText, placeholder: "e.g. Gourmet bakery and hot coffee.", accessibilityId: "editMerchantDescriptionInput")
                             }
                             .padding()
                             .background(AppColors.cardBackground)
@@ -102,8 +104,8 @@ struct EditMerchantProfileView: View {
                                 .foregroundColor(AppColors.primaryText)
                             
                             VStack(spacing: 12) {
-                                inputField(label: "Latitude", text: $latitudeString, placeholder: "e.g. 12.972").keyboardType(.decimalPad)
-                                inputField(label: "Longitude", text: $longitudeString, placeholder: "e.g. 77.595").keyboardType(.decimalPad)
+                                inputField(label: "Latitude", text: $latitudeString, placeholder: "e.g. 12.972", accessibilityId: "editMerchantLatitudeInput").keyboardType(.decimalPad)
+                                inputField(label: "Longitude", text: $longitudeString, placeholder: "e.g. 77.595", accessibilityId: "editMerchantLongitudeInput").keyboardType(.decimalPad)
                                 
                                 Button(action: refreshCoordinates) {
                                     HStack {
@@ -118,6 +120,7 @@ struct EditMerchantProfileView: View {
                                     .background(AppColors.secondaryCyan)
                                     .cornerRadius(14)
                                 }
+                                .accessibilityIdentifier("refreshCoordinatesButton")
                                 .padding(.top, 4)
                             }
                             .padding()
@@ -133,7 +136,7 @@ struct EditMerchantProfileView: View {
                                 .foregroundColor(AppColors.primaryText)
                             
                             VStack(spacing: 12) {
-                                inputField(label: "UPI Deep Link", text: $upiDeepLink, placeholder: "upi://pay?pa=merchant@upi&pn=BusinessName")
+                                inputField(label: "UPI Deep Link", text: $upiDeepLink, placeholder: "upi://pay?pa=merchant@upi&pn=BusinessName", accessibilityId: "editMerchantUpiInput")
                                 
                                 Button(action: { showScanner = true }) {
                                     HStack {
@@ -148,6 +151,7 @@ struct EditMerchantProfileView: View {
                                     .background(AppColors.primaryBlue)
                                     .cornerRadius(14)
                                 }
+                                .accessibilityIdentifier("scanQrCodeButton")
                                 .padding(.top, 4)
                             }
                             .padding()
@@ -179,6 +183,7 @@ struct EditMerchantProfileView: View {
                             .background(businessName.isEmpty || ownerName.isEmpty || upiDeepLink.isEmpty || isSaving ? Color.gray.opacity(0.4) : AppColors.primaryBlue)
                             .cornerRadius(18)
                         }
+                        .accessibilityIdentifier("saveChangesButton")
                         .disabled(businessName.isEmpty || ownerName.isEmpty || upiDeepLink.isEmpty || isSaving)
                         .padding(.top, 8)
                         .padding(.bottom, 40)
@@ -216,7 +221,7 @@ struct EditMerchantProfileView: View {
         }
     }
     
-    private func inputField(label: String, text: Binding<String>, placeholder: String) -> some View {
+    private func inputField(label: String, text: Binding<String>, placeholder: String, accessibilityId: String = "") -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .font(.caption)
@@ -224,6 +229,7 @@ struct EditMerchantProfileView: View {
                 .foregroundColor(AppColors.secondaryText)
             
             TextField(placeholder, text: text)
+                .accessibilityIdentifier(accessibilityId)
                 .padding()
                 .background(AppColors.primaryBackground)
                 .cornerRadius(12)

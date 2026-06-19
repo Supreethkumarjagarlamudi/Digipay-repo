@@ -91,6 +91,7 @@ extension MerchantHomeView {
                         }
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("editMerchantProfileButton")
 
                 Image("app_logo")
                     .resizable()
@@ -269,6 +270,7 @@ extension MerchantHomeView {
                         .fontWeight(.semibold)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("viewStatementButton")
             }
 
             if dashboardVM.recentPayments.isEmpty {
@@ -451,6 +453,7 @@ extension MerchantHomeView {
 
             .cornerRadius(18)
         }
+        .accessibilityIdentifier("merchantLogoutButton")
     }
 }
 

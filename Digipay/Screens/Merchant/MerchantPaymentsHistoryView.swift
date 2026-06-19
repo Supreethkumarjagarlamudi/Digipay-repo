@@ -25,6 +25,7 @@ struct MerchantPaymentsHistoryView: View {
                         }
                         .foregroundColor(AppColors.primaryBlue)
                     }
+                    .accessibilityIdentifier("paymentsHistoryBackButton")
                     Spacer()
                     Text("Payment Statement")
                         .font(.headline)
@@ -77,6 +78,7 @@ struct MerchantPaymentsHistoryView: View {
                         .foregroundColor(AppColors.secondaryText)
                     
                     TextField("Search customer phone or amount...", text: $searchText)
+                        .accessibilityIdentifier("paymentsHistorySearchField")
                         .textFieldStyle(.plain)
                         .foregroundColor(AppColors.primaryText)
                     
@@ -87,6 +89,7 @@ struct MerchantPaymentsHistoryView: View {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(AppColors.secondaryText)
                         }
+                        .accessibilityIdentifier("paymentsHistorySearchClearButton")
                     }
                 }
                 .padding()
