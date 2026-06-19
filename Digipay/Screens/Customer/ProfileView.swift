@@ -90,7 +90,16 @@ struct ProfileView: View {
             // Income Edit dialog
             .alert("Edit Monthly Income", isPresented: $showIncomeAlert) {
                 TextField("Monthly Income (₹)", text: $incomeInput)
+                    .accessibilityIdentifier("profileIncomeInput")
                     .keyboardType(.decimalPad)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") {
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            }
+                        }
+                    }
                 Button("Save") {
                     if let val = Double(incomeInput), val > 0 {
                         updateIncome(val)

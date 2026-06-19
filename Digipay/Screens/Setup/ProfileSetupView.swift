@@ -5,6 +5,8 @@ struct ProfileSetupView: View {
     @State private var fullName = ""
     @State private var email = ""
 
+    @FocusState private var isInputActive: Bool
+
     @EnvironmentObject
     private var session: SessionManager
 
@@ -68,6 +70,7 @@ struct ProfileSetupView: View {
                                     "Enter your name",
                                     text: $fullName
                                 )
+                                .focused($isInputActive)
                                 .accessibilityIdentifier("profileNameInput")
                                 .padding()
                                 .background(
@@ -88,6 +91,7 @@ struct ProfileSetupView: View {
                                     "example@gmail.com",
                                     text: $email
                                 )
+                                .focused($isInputActive)
                                 .accessibilityIdentifier("profileEmailInput")
                                 .keyboardType(.emailAddress)
                                 .textInputAutocapitalization(.never)
@@ -157,6 +161,15 @@ struct ProfileSetupView: View {
                 }
             }
             .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        isInputActive = false
+                    }
+                    .accessibilityIdentifier("keyboardDoneButton")
+                }
+            }
         }
     }
 }

@@ -12,6 +12,8 @@ struct MerchantBasicInfoView: View {
     @State private var navigateNext = false
     @State private var showValidationError = false
 
+    @FocusState private var isDescFocused: Bool
+
     let categories = [
         "Restaurant",
         "Cafe",
@@ -197,6 +199,7 @@ struct MerchantBasicInfoView: View {
                                 TextEditor(
                                     text: $businessDescription
                                 )
+                                .focused($isDescFocused)
                                 .accessibilityIdentifier("merchantDescriptionInput")
                                 .frame(
                                     minHeight: 120,
@@ -264,6 +267,15 @@ struct MerchantBasicInfoView: View {
                 }
             }
             .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                    .accessibilityIdentifier("keyboardDoneButton")
+                }
+            }
             .navigationDestination(
                 isPresented: $navigateNext
             ) {
@@ -292,6 +304,8 @@ struct MerchantTextField: View {
     @Binding var text: String
     var accessibilityId: String = ""
 
+    @FocusState private var isFocused: Bool
+
     var body: some View {
 
         VStack(
@@ -306,6 +320,7 @@ struct MerchantTextField: View {
                 placeholder,
                 text: $text
             )
+            .focused($isFocused)
             .accessibilityIdentifier(accessibilityId)
             .padding()
             .background(

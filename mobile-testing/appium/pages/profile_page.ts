@@ -40,32 +40,55 @@ export class ProfilePage extends BasePage {
                     timeout: 5000,
                     timeoutMsg: 'Budget alert did not appear'
                 });
-                if (await this.isDisplayed(this.budgetInput)) {
-                    await this.setValue(this.budgetInput, budget);
+                if (await browser.isAlertOpen()) {
+                    await browser.sendAlertText(budget);
+                    await browser.pause(500);
+                    
+                    // Click Save button directly
+                    const saveBtn = await browser.$('-ios predicate string:label == "Save" AND type == "XCUIElementTypeButton"');
+                    if (await saveBtn.isDisplayed()) {
+                        await saveBtn.click();
+                    } else {
+                        await browser.acceptAlert();
+                    }
+                    await browser.pause(1000);
                 }
-                await browser.acceptAlert();
             } catch (err: any) {
-                // Handled
+                try {
+                    const cancelBtn = await browser.$('-ios predicate string:label == "Cancel" AND type == "XCUIElementTypeButton"');
+                    if (await cancelBtn.isDisplayed()) {
+                        await cancelBtn.click();
+                    } else if (await browser.isAlertOpen()) {
+                        await browser.dismissAlert();
+                    }
+                } catch (dismissErr) {}
             }
         }
     }
 
     public async scrollToLogout() {
-        // logoutProfileButton is at the bottom of a long ScrollView
-        // 'mobile: scroll' direction:'down' = scrolls down = reveals bottom elements
-        await browser.waitUntil(async () => {
+        // try finding the element
+        for (let i = 0; i < 6; i++) {
             try {
                 const el = await this.findElement('~logoutProfileButton');
-                if (await el.isDisplayed()) return true;
+                if (await el.isDisplayed()) return;
             } catch (e) {}
-            // Scroll down (reveals content below/at bottom of page)
-            await browser.execute('mobile: scroll', { direction: 'down' });
-            await browser.pause(300);
-            return false;
-        }, {
-            timeout: 20000,
-            timeoutMsg: 'logoutProfileButton not visible after scrolling'
-        });
+            // Touch action scroll down fallback: swipe up (from y: 600 to y: 200) to reveal bottom content
+            try {
+                await browser.execute('mobile: dragFromToForDuration', {
+                    duration: 0.5,
+                    fromX: 200,
+                    fromY: 500,
+                    toX: 200,
+                    toY: 200
+                });
+            } catch (e) {
+                try {
+                    await browser.execute('mobile: scroll', { direction: 'down' });
+                } catch (scrollError) {}
+            }
+            await browser.pause(800);
+        }
     }
 
     public async clickLogout() {

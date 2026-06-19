@@ -21,6 +21,11 @@ struct EditMerchantProfileView: View {
     
     @StateObject private var locationManager = CustomerLocationManager()
 
+    enum Field: Hashable {
+        case businessName, ownerName, gstNumber, descriptionText, latitude, longitude, upiDeepLink
+    }
+    @FocusState private var focusedField: Field?
+
     let categories = ["Food", "Medical", "Shopping", "Retail", "Bills", "Entertainment", "Other"]
 
     var body: some View {
@@ -64,8 +69,8 @@ struct EditMerchantProfileView: View {
                                 .foregroundColor(AppColors.primaryText)
                             
                             VStack(spacing: 12) {
-                                inputField(label: "Business Name", text: $businessName, placeholder: "e.g. Starbucks Corner", accessibilityId: "editMerchantBusinessNameInput")
-                                inputField(label: "Owner Name", text: $ownerName, placeholder: "e.g. Sanjay Gupta", accessibilityId: "editMerchantOwnerNameInput")
+                                inputField(label: "Business Name", text: $businessName, placeholder: "e.g. Starbucks Corner", field: .businessName, accessibilityId: "editMerchantBusinessNameInput")
+                                inputField(label: "Owner Name", text: $ownerName, placeholder: "e.g. Sanjay Gupta", field: .ownerName, accessibilityId: "editMerchantOwnerNameInput")
                                 
                                 // Category Selector
                                 VStack(alignment: .leading, spacing: 6) {
@@ -88,8 +93,8 @@ struct EditMerchantProfileView: View {
                                     .cornerRadius(12)
                                 }
                                 
-                                inputField(label: "GST Number (Optional)", text: $gstNumber, placeholder: "e.g. 29AAAAA1111A1Z1", accessibilityId: "editMerchantGstInput")
-                                inputField(label: "Description (Optional)", text: $descriptionText, placeholder: "e.g. Gourmet bakery and hot coffee.", accessibilityId: "editMerchantDescriptionInput")
+                                inputField(label: "GST Number (Optional)", text: $gstNumber, placeholder: "e.g. 29AAAAA1111A1Z1", field: .gstNumber, accessibilityId: "editMerchantGstInput")
+                                inputField(label: "Description (Optional)", text: $descriptionText, placeholder: "e.g. Gourmet bakery and hot coffee.", field: .descriptionText, accessibilityId: "editMerchantDescriptionInput")
                             }
                             .padding()
                             .background(AppColors.cardBackground)
@@ -104,8 +109,8 @@ struct EditMerchantProfileView: View {
                                 .foregroundColor(AppColors.primaryText)
                             
                             VStack(spacing: 12) {
-                                inputField(label: "Latitude", text: $latitudeString, placeholder: "e.g. 12.972", accessibilityId: "editMerchantLatitudeInput").keyboardType(.decimalPad)
-                                inputField(label: "Longitude", text: $longitudeString, placeholder: "e.g. 77.595", accessibilityId: "editMerchantLongitudeInput").keyboardType(.decimalPad)
+                                inputField(label: "Latitude", text: $latitudeString, placeholder: "e.g. 12.972", field: .latitude, accessibilityId: "editMerchantLatitudeInput").keyboardType(.decimalPad)
+                                inputField(label: "Longitude", text: $longitudeString, placeholder: "e.g. 77.595", field: .longitude, accessibilityId: "editMerchantLongitudeInput").keyboardType(.decimalPad)
                                 
                                 Button(action: refreshCoordinates) {
                                     HStack {
@@ -136,7 +141,7 @@ struct EditMerchantProfileView: View {
                                 .foregroundColor(AppColors.primaryText)
                             
                             VStack(spacing: 12) {
-                                inputField(label: "UPI Deep Link", text: $upiDeepLink, placeholder: "upi://pay?pa=merchant@upi&pn=BusinessName", accessibilityId: "editMerchantUpiInput")
+                                inputField(label: "UPI Deep Link", text: $upiDeepLink, placeholder: "upi://pay?pa=merchant@upi&pn=BusinessName", field: .upiDeepLink, accessibilityId: "editMerchantUpiInput")
                                 
                                 Button(action: { showScanner = true }) {
                                     HStack {
@@ -193,6 +198,15 @@ struct EditMerchantProfileView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    focusedField = nil
+                }
+                .accessibilityIdentifier("keyboardDoneButton")
+            }
+        }
         .onAppear {
             self.businessName = dashboardVM.businessName
             self.ownerName = dashboardVM.ownerName
@@ -221,7 +235,7 @@ struct EditMerchantProfileView: View {
         }
     }
     
-    private func inputField(label: String, text: Binding<String>, placeholder: String, accessibilityId: String = "") -> some View {
+    private func inputField(label: String, text: Binding<String>, placeholder: String, field: Field, accessibilityId: String = "") -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .font(.caption)
@@ -230,6 +244,7 @@ struct EditMerchantProfileView: View {
             
             TextField(placeholder, text: text)
                 .accessibilityIdentifier(accessibilityId)
+                .focused($focusedField, equals: field)
                 .padding()
                 .background(AppColors.primaryBackground)
                 .cornerRadius(12)

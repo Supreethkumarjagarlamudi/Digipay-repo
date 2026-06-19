@@ -16,16 +16,72 @@ export class BasePage {
         return el;
     }
 
+    public async scrollIntoView(selector: string, timeout = 20000) {
+        logger.info(`Scrolling into view: ${selector}`);
+        await browser.waitUntil(async () => {
+            try {
+                const el = await this.findElement(selector);
+                if (await el.isDisplayed()) return true;
+            } catch (e) {}
+            await browser.execute('mobile: scroll', { direction: 'down' });
+            await browser.pause(300);
+            return false;
+        }, {
+            timeout,
+            timeoutMsg: `Element ${selector} not visible after scrolling`
+        });
+    }
+
+    public async scrollUpIntoView(selector: string, timeout = 20000) {
+        logger.info(`Scrolling up into view: ${selector}`);
+        await browser.waitUntil(async () => {
+            try {
+                const el = await this.findElement(selector);
+                if (await el.isDisplayed()) return true;
+            } catch (e) {}
+            await browser.execute('mobile: scroll', { direction: 'up' });
+            await browser.pause(300);
+            return false;
+        }, {
+            timeout,
+            timeoutMsg: `Element ${selector} not visible after scrolling up`
+        });
+    }
+
+
     public async click(selector: string) {
         logger.info(`Clicking element: ${selector}`);
+        if (!(await this.isDisplayed(selector))) {
+            try {
+                await this.scrollIntoView(selector, 4000);
+            } catch (e) {
+                try {
+                    await this.scrollUpIntoView(selector, 4000);
+                } catch (upError) {
+                    logger.info(`Scroll in both directions failed for: ${selector}`);
+                }
+            }
+        }
         const el = await this.waitForDisplayed(selector);
         await el.click();
     }
 
     public async setValue(selector: string, value: string) {
         logger.info(`Setting value for element: ${selector}`);
+        if (!(await this.isDisplayed(selector))) {
+            try {
+                await this.scrollIntoView(selector, 4000);
+            } catch (e) {
+                try {
+                    await this.scrollUpIntoView(selector, 4000);
+                } catch (upError) {
+                    logger.info(`Scroll in both directions failed for: ${selector}`);
+                }
+            }
+        }
         const el = await this.waitForDisplayed(selector);
         await el.setValue(value);
+        await browser.pause(500);
         try {
             if (await this.isDisplayed('~keyboardDoneButton')) {
                 await this.click('~keyboardDoneButton');
@@ -96,39 +152,61 @@ export class BasePage {
     }
 
     public async dismissSystemAlerts(): Promise<void> {
-        // Dismiss any iOS system permission dialogs (location, notifications, etc.)
-        // that may be blocking the UI
+        // 1. Wait for the alert to actually be present on screen
         try {
             await browser.waitUntil(async () => {
                 try {
                     await browser.getAlertText();
                     return true;
                 } catch (e) { return false; }
-            }, { timeout: 2000, timeoutMsg: 'no system alert' });
-            await browser.acceptAlert();
-            logger.info('Dismissed system alert via acceptAlert');
+            }, { timeout: 4000, timeoutMsg: 'no system alert appeared' });
+        } catch (e) {
+            logger.info('dismissSystemAlerts: No alert appeared');
             return;
-        } catch (e) {}
+        }
 
-        // Try tapping common allow buttons used in location/notification dialogs
         const allowLabels = [
             'Allow While Using App',
             'Allow Once',
             'Allow',
-            'OK',
-            'Don\'t Allow'
+            'OK'
         ];
+
+        // 2. Try mobile: alert first (most reliable for system dialogs)
+        try {
+            const buttons = await browser.execute('mobile: alert', { action: 'getButtons' }) as string[];
+            logger.info(`System alert buttons found: ${JSON.stringify(buttons)}`);
+            for (const label of allowLabels) {
+                if (buttons.includes(label)) {
+                    await browser.execute('mobile: alert', { action: 'accept', buttonLabel: label });
+                    logger.info(`Dismissed system dialog using mobile:alert and tapping: ${label}`);
+                    await browser.pause(1000);
+                    return;
+                }
+            }
+        } catch (err: any) {
+            logger.info(`mobile: alert interaction failed: ${err.message}. Trying element-based fallback...`);
+        }
+
+        // 3. Fallback: Try tapping common allow/grant buttons via predicate search
         for (const label of allowLabels) {
             try {
                 const btn = await browser.$(`-ios predicate string:label == "${label}" AND type == "XCUIElementTypeButton"`);
                 if (await btn.isDisplayed()) {
-                    // For location we prefer "Allow While Using App"; for others just accept first hit
                     await btn.click();
                     logger.info(`Dismissed system dialog by tapping: ${label}`);
                     await browser.pause(500);
                     return;
                 }
             } catch (e) {}
+        }
+
+        // 4. Fallback to standard acceptAlert if none of the custom buttons matched
+        try {
+            await browser.acceptAlert();
+            logger.info('Dismissed system alert via acceptAlert fallback');
+        } catch (e: any) {
+            logger.warn(`Failed acceptAlert fallback: ${e.message}`);
         }
     }
 
