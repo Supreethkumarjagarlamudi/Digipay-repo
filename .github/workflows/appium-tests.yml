@@ -161,7 +161,7 @@ jobs:
         if: always()
         run: |
           python3 - <<'PYEOF'
-          import json, os, sys
+          import json, os, sys, re
           from datetime import datetime
 
           json_path = "mobile-testing/appium/reports/json/test_results.json"
@@ -175,59 +175,126 @@ jobs:
           total   = len(tests)
           passed  = sum(1 for t in tests if t.get("status") == "PASSED")
           failed  = total - passed
-          rate    = f"{passed/total*100:.1f}%" if total else "N/A"
+          rate_val = (passed / total) if total else 0
+          rate_pct = f"{rate_val * 100:.1f}%" if total else "N/A"
           badge   = "✅" if failed == 0 else "❌"
+
+          # Visual pass rate progress bar
+          filled_blocks = int(rate_val * 15)
+          empty_blocks = 15 - filled_blocks
+          progress_bar = "🟩" * filled_blocks + "⬜" * empty_blocks
+
+          # Parse metadata from test names: "TC-SMK-001 [Priority: High, Module: Launch, Feature: App Startup]: Verify..."
+          parsed_tests = []
+          for t in tests:
+              name = t.get("name", "")
+              status = t.get("status", "UNKNOWN")
+              suite = t.get("suite", "Unknown Suite")
+              
+              tc_match = re.search(r"(TC-\w+-\d+)", name)
+              priority_match = re.search(r"Priority:\s*(\w+)", name)
+              module_match = re.search(r"Module:\s*([\w/]+)", name)
+              feature_match = re.search(r"Feature:\s*([^,\]]+)", name)
+              title_match = re.search(r"\]:\s*(.+)", name)
+              
+              tc_id = tc_match.group(1) if tc_match else "TC-GEN"
+              priority = priority_match.group(1) if priority_match else "Medium"
+              module = module_match.group(1) if module_match else "General"
+              feature = feature_match.group(1).strip() if feature_match else "General"
+              title = title_match.group(1).strip() if title_match else name
+              
+              parsed_tests.append({
+                  "tc_id": tc_id,
+                  "suite": suite,
+                  "priority": priority,
+                  "module": module,
+                  "feature": feature,
+                  "title": title,
+                  "status": status
+              })
+
+          # Breakdown by Suite
+          suites = {}
+          for pt in parsed_tests:
+              s = pt["suite"]
+              if s not in suites: suites[s] = {"pass": 0, "fail": 0}
+              suites[s]["pass" if pt["status"] == "PASSED" else "fail"] += 1
+
+          # Breakdown by Module
+          modules = {}
+          for pt in parsed_tests:
+              m = pt["module"]
+              if m not in modules: modules[m] = {"pass": 0, "fail": 0}
+              modules[m]["pass" if pt["status"] == "PASSED" else "fail"] += 1
+
+          # Breakdown by Priority
+          priorities = {"High": {"pass": 0, "fail": 0}, "Medium": {"pass": 0, "fail": 0}, "Low": {"pass": 0, "fail": 0}}
+          for pt in parsed_tests:
+              p = pt["priority"]
+              if p in priorities:
+                  priorities[p]["pass" if pt["status"] == "PASSED" else "fail"] += 1
 
           summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/stdout")
           with open(summary_path, "w") as out:
-              out.write(f"# {badge} Digipay — iOS Mobile Test Report\n\n")
+              out.write(f"# {badge} Digipay — iOS End-to-End Automation Report\n\n")
               out.write(f"> **Branch:** `{os.environ.get('GITHUB_REF_NAME','unknown')}` &nbsp;|&nbsp; ")
-              out.write(f"**Run:** #{os.environ.get('GITHUB_RUN_NUMBER','?')} &nbsp;|&nbsp; ")
-              out.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')} UTC\n\n")
-              out.write("## 📊 Test Execution Summary\n\n")
-              out.write("| Metric | Value |\n|--------|-------|\n")
+              out.write(f"**Trigger:** `{os.environ.get('GITHUB_EVENT_NAME','manual')}` &nbsp;|&nbsp; ")
+              out.write(f"**Run Number:** #{os.environ.get('GITHUB_RUN_NUMBER','?')} &nbsp;|&nbsp; ")
+              out.write(f"**Execution Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
+              
+              out.write("## 📈 Overall Metrics\n\n")
+              out.write(f"**Pass Rate Visual Indicator:**\n`{progress_bar}` **{rate_pct}**\n\n")
+              out.write("| Metric | Value |\n|---|---|\n")
               out.write(f"| 🔢 Total Tests | **{total}** |\n")
-              out.write(f"| ✅ Passed      | **{passed}** |\n")
-              out.write(f"| ❌ Failed      | **{failed}** |\n")
-              out.write(f"| 📊 Pass Rate   | **{rate}** |\n")
-              out.write(f"| 📱 Platform    | iOS Simulator |\n")
-              out.write(f"| 🛠 Framework   | Appium + WebdriverIO |\n\n")
+              out.write(f"| 🟢 Passed | **{passed}** |\n")
+              out.write(f"| 🔴 Failed | **{failed}** |\n")
+              out.write(f"| 📱 Device Platform | iOS Simulator (iPhone 17) |\n")
+              out.write(f"| 🛠️ Engine Driver | Appium + XCUITest Driver |\n\n")
 
-              # Suite breakdown
-              suites = {}
-              for t in tests:
-                  s = t.get("suite", "Unknown")
-                  if s not in suites: suites[s] = {"pass": 0, "fail": 0}
-                  suites[s]["pass" if t.get("status") == "PASSED" else "fail"] += 1
+              out.write("## 🎯 Breakdown by Test Priority\n\n")
+              out.write("| Priority | Total | Passed | Failed | Pass Rate |\n")
+              out.write("|---|---:|---:|---:|---:|\n")
+              for p in ["High", "Medium", "Low"]:
+                  p_pass = priorities[p]["pass"]
+                  p_fail = priorities[p]["fail"]
+                  p_total = p_pass + p_fail
+                  p_rate = f"{(p_pass/p_total*100):.1f}%" if p_total else "0.0%"
+                  out.write(f"| **{p}** | {p_total} | {p_pass} | {p_fail} | {p_rate} |\n")
+              out.write("\n")
 
-              out.write("## 📂 Results by Suite\n\n")
-              out.write("| Suite | Total | ✅ Passed | ❌ Failed | Status |\n")
-              out.write("|-------|------:|----------:|----------:|--------|\n")
-              for suite, data in sorted(suites.items()):
-                  st = data["pass"] + data["fail"]
-                  status = "✅ PASS" if data["fail"] == 0 else f"❌ {data['fail']} FAIL"
-                  out.write(f"| {suite} | {st} | {data['pass']} | {data['fail']} | {status} |\n")
+              out.write("## 📂 Breakdown by Test Suite\n\n")
+              out.write("| Suite | Total | Passed | Failed | Status |\n")
+              out.write("|---|---:|---:|---:|---|\n")
+              for s, data in sorted(suites.items()):
+                  s_total = data["pass"] + data["fail"]
+                  s_status = "✅ PASS" if data["fail"] == 0 else f"❌ {data['fail']} FAIL"
+                  out.write(f"| {s} | {s_total} | {data['pass']} | {data['fail']} | **{s_status}** |\n")
+              out.write("\n")
+
+              out.write("## ⚙️ Breakdown by Feature Module\n\n")
+              out.write("| Feature Module | Total | Passed | Failed | Pass Rate |\n")
+              out.write("|---|---:|---:|---:|---:|\n")
+              for m, data in sorted(modules.items()):
+                  m_total = data["pass"] + data["fail"]
+                  m_rate = f"{(data['pass']/m_total*100):.1f}%" if m_total else "0.0%"
+                  out.write(f"| {m} | {m_total} | {data['pass']} | {data['fail']} | {m_rate} |\n")
               out.write("\n")
 
               if failed == 0:
-                  out.write("## 🎉 All Tests Passed!\n\n")
-                  out.write("> 100% pass rate achieved across all suites. 🚀\n\n")
+                  out.write("## 🎉 Verification Status: 100% SUCCESS\n\n")
+                  out.write("> All test cases executed successfully. No regressions or integration errors detected in the current build. 🚀\n\n")
               else:
-                  out.write("## ❌ Failed Tests\n\n")
-                  out.write("| Test Case ID | Suite | Description |\n|---|---|---|\n")
-                  for t in tests:
-                      if t.get("status") != "PASSED":
-                          name = t.get("name", "")
-                          import re
-                          m = re.search(r"(TC-\w+-\d+).*?:\s+(.+)", name)
-                          tc_id = m.group(1) if m else "—"
-                          desc  = m.group(2)[:80] if m else name[:80]
-                          out.write(f"| {tc_id} | {t.get('suite','—')} | {desc} |\n")
+                  out.write("## ❌ Failed Test Cases Catalog\n\n")
+                  out.write("| ID | Suite | Module | Feature Area | Description / Fail Reason |\n")
+                  out.write("|---|---|---|---|---|\n")
+                  for pt in parsed_tests:
+                      if pt["status"] != "PASSED":
+                          out.write(f"| `{pt['tc_id']}` | {pt['suite']} | {pt['module']} | {pt['feature']} | {pt['title'][:80]} |\n")
                   out.write("\n")
 
-              out.write("---\n_📥 Download the full `.xlsx` report from the **Artifacts** section._\n")
+              out.write("---\n_📥 Download the detailed, styled `.xlsx` test workbook from the **Artifacts** panel below._\n")
 
-          print(f"✅ Job summary written: {total} tests, {passed} passed, {failed} failed")
+          print(f"✅ GITHUB_STEP_SUMMARY updated: {total} tests processed.")
           PYEOF
 
       - name: 📤 Upload Test Reports and Artifacts

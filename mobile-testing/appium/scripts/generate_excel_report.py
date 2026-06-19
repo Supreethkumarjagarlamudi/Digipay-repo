@@ -209,19 +209,14 @@ ws_sum.row_dimensions[5].height = 35
 ws_sum.row_dimensions[6].height = 12  # spacer
 
 # Per-suite table
-suite_order = [
-    "Smoke Testing Suite", "Functional Testing Suite",
-    "Validation Testing Suite", "Navigation Testing Suite",
-    "Regression Testing Suite", "Performance Testing Suite",
-    "Accessibility Testing Suite", "UI/UX Testing Suite",
-]
-
 suite_data = {}
 for t in tests:
     s = t["suite"]
     if s not in suite_data:
         suite_data[s] = {"pass": 0, "fail": 0}
     suite_data[s]["pass" if t["status"] == "PASSED" else "fail"] += 1
+
+suite_order = sorted(list(suite_data.keys()))
 
 suite_cols = ["Test Suite", "Total", "Passed", "Failed", "Pass Rate", "Status"]
 for col, h in enumerate(suite_cols, start=1):
@@ -308,11 +303,12 @@ suite_sheet_names = {
 cols_suite = ["#", "Test Case ID", "Module", "Priority", "Feature", "Test Description", "Status"]
 widths_suite=[5, 14, 16, 10, 22, 65, 10]
 
-for suite_name, sheet_label in suite_sheet_names.items():
+for suite_name in sorted(list(suite_data.keys())):
     suite_tests = [t for t in tests if t["suite"] == suite_name]
     if not suite_tests:
         continue
 
+    sheet_label = suite_sheet_names.get(suite_name, suite_name.replace("Testing Suite", "").replace("Suite", "").strip()[:30])
     ws = wb.create_sheet(sheet_label)
     ws.sheet_view.showGridLines = False
 
