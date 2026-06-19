@@ -184,45 +184,45 @@ jobs:
           run_time = report.get("duration", 0)
           pass_rate = (passed / total * 100) if total > 0 else 0
 
-          badge = "✅" if (failed == 0 and total > 0) else "❌"
+          status_str = "SUCCESS" if (failed == 0 and total > 0) else "FAILED"
 
           summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/stdout")
           with open(summary_path, "w") as out:
-              out.write(f"# {badge} Digipay — E2E Test Report\n\n")
+              out.write(f"# Digipay -- E2E Test Report ({status_str})\n\n")
               out.write(f"> **Branch:** `{os.environ.get('GITHUB_REF_NAME','unknown')}` &nbsp;|&nbsp; ")
               out.write(f"**Run:** #{os.environ.get('GITHUB_RUN_NUMBER','?')} &nbsp;|&nbsp; ")
               out.write(f"**Duration:** {run_time:.2f}s &nbsp;|&nbsp; ")
               out.write(f"**Pass Rate:** {pass_rate:.1f}%\n\n")
 
               # ── KPI table ──────────────────────────────────────────
-              out.write("## 📊 Test Run Summary\n\n")
+              out.write("## Test Run Summary\n\n")
               out.write("| Metric | Value |\n")
               out.write("|--------|-------|\n")
-              out.write(f"| 🔢 Total Tests   | **{total}** |\n")
-              out.write(f"| ✅ Passed        | **{passed}** |\n")
-              out.write(f"| ❌ Failed        | **{failed}** |\n")
-              if errors:  out.write(f"| 💥 Errors        | **{errors}** |\n")
-              if skipped: out.write(f"| ⏭ Skipped        | **{skipped}** |\n")
-              out.write(f"| 📊 Pass Rate     | **{pass_rate:.1f}%** |\n")
-              out.write(f"| ⏱ Total Duration | **{run_time:.2f}s** |\n\n")
+              out.write(f"| Total Tests   | **{total}** |\n")
+              out.write(f"| Passed        | **{passed}** |\n")
+              out.write(f"| Failed        | **{failed}** |\n")
+              if errors:  out.write(f"| Errors        | **{errors}** |\n")
+              if skipped: out.write(f"| Skipped        | **{skipped}** |\n")
+              out.write(f"| Pass Rate     | **{pass_rate:.1f}%** |\n")
+              out.write(f"| Total Duration | **{run_time:.2f}s** |\n\n")
 
               # ── Category breakdown ─────────────────────────────────
               categories = defaultdict(lambda: {"passed": 0, "failed": 0, "total": 0})
               for t in tests:
                   node_id = t.get("nodeid", "")
                   lower   = node_id.lower()
-                  if   "landing"   in lower: cat = "🏠 Landing Page"
-                  elif "login"     in lower: cat = "🔐 Login Portal"
-                  elif "dashboard" in lower: cat = "📊 Dashboard Portal"
+                  if   "landing"   in lower: cat = "Landing Page"
+                  elif "login"     in lower: cat = "Login Portal"
+                  elif "dashboard" in lower: cat = "Dashboard Portal"
                   elif "api_unit"  in lower:
-                      if   "testbackendhealth"    in lower or "root" in lower: cat = "🟢 API Health"
-                      elif "testauthendpoints"    in lower or "auth" in lower: cat = "🔑 Authentication API"
-                      elif "testwalletendpoints"  in lower or "wallet" in lower: cat = "💳 Wallet API"
-                      elif "testadminendpoints"   in lower or "admin" in lower: cat = "🛡 Admin API"
-                      elif "testmerchantendpoints" in lower or "merchant" in lower: cat = "🏪 Merchant API"
-                      else: cat = "⚙️ API Tests"
-                  elif "security"  in lower: cat = "🔒 Security Tests"
-                  else: cat = "📁 General"
+                      if   "testbackendhealth"    in lower or "root" in lower: cat = "API Health"
+                      elif "testauthendpoints"    in lower or "auth" in lower: cat = "Authentication API"
+                      elif "testwalletendpoints"  in lower or "wallet" in lower: cat = "Wallet API"
+                      elif "testadminendpoints"   in lower or "admin" in lower: cat = "Admin API"
+                      elif "testmerchantendpoints" in lower or "merchant" in lower: cat = "Merchant API"
+                      else: cat = "API Tests"
+                  elif "security"  in lower: cat = "Security Tests"
+                  else: cat = "General"
 
                   outcome = t.get("outcome", "unknown")
                   categories[cat]["total"] += 1
@@ -231,18 +231,18 @@ jobs:
                   else:
                       categories[cat]["failed"] += 1
 
-              out.write("## 📂 Results by Category\n\n")
-              out.write("| Category | Total | ✅ Passed | ❌ Failed | Status |\n")
+              out.write("## Results by Category\n\n")
+              out.write("| Category | Total | Passed | Failed | Status |\n")
               out.write("|----------|------:|----------:|----------:|--------|\n")
               for cat, c in sorted(categories.items()):
-                  status = "✅ All Pass" if c["failed"] == 0 else f"❌ {c['failed']} Failed"
+                  status = "All Pass" if c["failed"] == 0 else f"{c['failed']} Failed"
                   out.write(f"| {cat} | {c['total']} | {c['passed']} | {c['failed']} | {status} |\n")
               out.write("\n")
 
               # ── Failed tests detail ────────────────────────────────
               failed_tests = [t for t in tests if t.get("outcome") != "passed"]
               if failed_tests:
-                  out.write("## ❌ Failed Tests\n\n")
+                  out.write("## Failed Tests\n\n")
                   out.write("| # | Category | Test Name | Error |\n")
                   out.write("|---|----------|-----------|-------|\n")
                   for i, t in enumerate(failed_tests, 1):
@@ -265,13 +265,13 @@ jobs:
                       out.write(f"| {i} | {cat} | `{name}` | {first_line} |\n")
                   out.write("\n")
               else:
-                  out.write("## 🎉 All Tests Passed!\n\n")
-                  out.write("> No failures detected in this run. Great job! 🚀\n\n")
+                  out.write("## All Tests Passed!\n\n")
+                  out.write("> No failures detected in this run. Great job!\n\n")
 
               out.write("---\n")
-              out.write("_📁 Download the full `.xlsx` report from the **Artifacts** section below this summary._\n")
+              out.write("_Download the full `.xlsx` report from the **Artifacts** section below this summary._\n")
 
-          print("✅ GitHub Actions job summary written successfully.")
+          print("GitHub Actions job summary written successfully.")
           PYEOF
 
       # ──────────────────────────────────────────────────────────────

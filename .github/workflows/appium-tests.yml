@@ -177,12 +177,12 @@ jobs:
           failed  = total - passed
           rate_val = (passed / total) if total else 0
           rate_pct = f"{rate_val * 100:.1f}%" if total else "N/A"
-          badge   = "✅" if failed == 0 else "❌"
+          status_str = "SUCCESS" if failed == 0 else "FAILED"
 
-          # Visual pass rate progress bar
+          # Visual pass rate progress bar using ASCII characters
           filled_blocks = int(rate_val * 15)
           empty_blocks = 15 - filled_blocks
-          progress_bar = "🟩" * filled_blocks + "⬜" * empty_blocks
+          progress_bar = "[" + "=" * filled_blocks + "-" * empty_blocks + "]"
 
           # Parse metadata from test names: "TC-SMK-001 [Priority: High, Module: Launch, Feature: App Startup]: Verify..."
           parsed_tests = []
@@ -236,22 +236,22 @@ jobs:
 
           summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/stdout")
           with open(summary_path, "w") as out:
-              out.write(f"# {badge} Digipay — iOS End-to-End Automation Report\n\n")
+              out.write(f"# Digipay -- iOS End-to-End Automation Report ({status_str})\n\n")
               out.write(f"> **Branch:** `{os.environ.get('GITHUB_REF_NAME','unknown')}` &nbsp;|&nbsp; ")
               out.write(f"**Trigger:** `{os.environ.get('GITHUB_EVENT_NAME','manual')}` &nbsp;|&nbsp; ")
               out.write(f"**Run Number:** #{os.environ.get('GITHUB_RUN_NUMBER','?')} &nbsp;|&nbsp; ")
               out.write(f"**Execution Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
               
-              out.write("## 📈 Overall Metrics\n\n")
+              out.write("## Overall Metrics\n\n")
               out.write(f"**Pass Rate Visual Indicator:**\n`{progress_bar}` **{rate_pct}**\n\n")
               out.write("| Metric | Value |\n|---|---|\n")
-              out.write(f"| 🔢 Total Tests | **{total}** |\n")
-              out.write(f"| 🟢 Passed | **{passed}** |\n")
-              out.write(f"| 🔴 Failed | **{failed}** |\n")
-              out.write(f"| 📱 Device Platform | iOS Simulator (iPhone 17) |\n")
-              out.write(f"| 🛠️ Engine Driver | Appium + XCUITest Driver |\n\n")
+              out.write(f"| Total Tests | **{total}** |\n")
+              out.write(f"| Passed | **{passed}** |\n")
+              out.write(f"| Failed | **{failed}** |\n")
+              out.write(f"| Device Platform | iOS Simulator (iPhone 17) |\n")
+              out.write(f"| Engine Driver | Appium + XCUITest Driver |\n\n")
 
-              out.write("## 🎯 Breakdown by Test Priority\n\n")
+              out.write("## Breakdown by Test Priority\n\n")
               out.write("| Priority | Total | Passed | Failed | Pass Rate |\n")
               out.write("|---|---:|---:|---:|---:|\n")
               for p in ["High", "Medium", "Low"]:
@@ -262,16 +262,16 @@ jobs:
                   out.write(f"| **{p}** | {p_total} | {p_pass} | {p_fail} | {p_rate} |\n")
               out.write("\n")
 
-              out.write("## 📂 Breakdown by Test Suite\n\n")
+              out.write("## Breakdown by Test Suite\n\n")
               out.write("| Suite | Total | Passed | Failed | Status |\n")
               out.write("|---|---:|---:|---:|---|\n")
               for s, data in sorted(suites.items()):
                   s_total = data["pass"] + data["fail"]
-                  s_status = "✅ PASS" if data["fail"] == 0 else f"❌ {data['fail']} FAIL"
+                  s_status = "PASS" if data["fail"] == 0 else f"{data['fail']} FAIL"
                   out.write(f"| {s} | {s_total} | {data['pass']} | {data['fail']} | **{s_status}** |\n")
               out.write("\n")
 
-              out.write("## ⚙️ Breakdown by Feature Module\n\n")
+              out.write("## Breakdown by Feature Module\n\n")
               out.write("| Feature Module | Total | Passed | Failed | Pass Rate |\n")
               out.write("|---|---:|---:|---:|---:|\n")
               for m, data in sorted(modules.items()):
@@ -281,10 +281,10 @@ jobs:
               out.write("\n")
 
               if failed == 0:
-                  out.write("## 🎉 Verification Status: 100% SUCCESS\n\n")
-                  out.write("> All test cases executed successfully. No regressions or integration errors detected in the current build. 🚀\n\n")
+                  out.write("## Verification Status: 100% SUCCESS\n\n")
+                  out.write("> All test cases executed successfully. No regressions or integration errors detected in the current build.\n\n")
               else:
-                  out.write("## ❌ Failed Test Cases Catalog\n\n")
+                  out.write("## Failed Test Cases Catalog\n\n")
                   out.write("| ID | Suite | Module | Feature Area | Description / Fail Reason |\n")
                   out.write("|---|---|---|---|---|\n")
                   for pt in parsed_tests:
@@ -292,9 +292,9 @@ jobs:
                           out.write(f"| `{pt['tc_id']}` | {pt['suite']} | {pt['module']} | {pt['feature']} | {pt['title'][:80]} |\n")
                   out.write("\n")
 
-              out.write("---\n_📥 Download the detailed, styled `.xlsx` test workbook from the **Artifacts** panel below._\n")
+              out.write("---\n_Download the detailed, styled `.xlsx` test workbook from the **Artifacts** panel below._\n")
 
-          print(f"✅ GITHUB_STEP_SUMMARY updated: {total} tests processed.")
+          print(f"GITHUB_STEP_SUMMARY updated: {total} tests processed.")
           PYEOF
 
       - name: 📤 Upload Test Reports and Artifacts

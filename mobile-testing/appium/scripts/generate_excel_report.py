@@ -28,12 +28,24 @@ def parse_from_log(log_path):
         "TC-PERF": "Performance Testing Suite",
         "TC-ACC":  "Accessibility Testing Suite",
         "TC-UI":   "UI/UX Testing Suite",
+        "TC-RLS":  "Release/Onboarding Suite",
+        "TC-LGN":  "Authentication & Login Suite",
+        "TC-OTP":  "OTP Verification Suite",
+        "TC-MBI":  "Merchant Basic Info Suite",
+        "TC-MLC":  "Merchant Location Suite",
+        "TC-MQR":  "Merchant QR/UPI Suite",
+        "TC-MHD":  "Merchant Dashboard Suite",
+        "TC-MPH":  "Merchant Payment History Suite",
+        "TC-EMP":  "Edit Merchant Profile Suite",
+        "TC-CPF":  "Customer Profile Suite",
+        "TC-EDG":  "Merchant & Workflows Edge, Telemetry & Resilience Suite",
     }
     seen = set()
     with open(log_path, encoding="utf-8") as f:
         for line in f:
-            # Match lines like:   ✓ TC-SMK-001 [...]
-            m = re.search(r"([✓✗])\s+(TC-\w+-\d+)\s+(\[.*?\]):\s+(.+)", line)
+            # Match lines like:   ✓ TC-SMK-001 [Priority: High, Module: Launch, Feature: App Startup]: Description
+            # or:                ✓ TC-EDG-037: Description
+            m = re.search(r"([✓✗])\s+(TC-\w+-\d+)(?:\s+\[(.*?)\])?:\s+(.+)", line)
             if not m:
                 continue
             symbol, tc_id, meta, title = m.groups()
@@ -42,17 +54,24 @@ def parse_from_log(log_path):
             seen.add(tc_id)
 
             # Parse metadata tags
-            priority = re.search(r"Priority:\s*(\w+)", meta)
-            module   = re.search(r"Module:\s*([\w/]+)", meta)
-            feature  = re.search(r"Feature:\s*([^,\]]+)", meta)
+            priority = ""
+            module   = ""
+            feature  = ""
+            if meta:
+                priority_m = re.search(r"Priority:\s*(\w+)", meta)
+                module_m   = re.search(r"Module:\s*([\w/]+)", meta)
+                feature_m  = re.search(r"Feature:\s*([^,\]]+)", meta)
+                if priority_m: priority = priority_m.group(1)
+                if module_m:   module   = module_m.group(1)
+                if feature_m:  feature  = feature_m.group(1).strip()
 
             prefix = tc_id.rsplit("-", 1)[0]  # e.g. TC-SMK
             results.append({
                 "tc_id":    tc_id,
                 "suite":    suite_map.get(prefix, "Unknown Suite"),
-                "module":   module.group(1)   if module   else "",
-                "priority": priority.group(1) if priority else "",
-                "feature":  feature.group(1).strip()  if feature  else "",
+                "module":   module,
+                "priority": priority,
+                "feature":  feature,
                 "title":    title.strip(),
                 "status":   "PASSED" if symbol == "✓" else "FAILED",
             })
@@ -65,19 +84,27 @@ def parse_from_json(json_path):
     results = []
     for item in raw:
         name = item.get("name", "")
-        m = re.search(r"(TC-\w+-\d+)\s+(\[.*?\]):\s+(.+)", name)
+        m = re.search(r"(TC-\w+-\d+)(?:\s+\[(.*?)\])?:\s+(.+)", name)
         if not m:
             continue
         tc_id, meta, title = m.groups()
-        priority = re.search(r"Priority:\s*(\w+)", meta)
-        module   = re.search(r"Module:\s*([\w/]+)", meta)
-        feature  = re.search(r"Feature:\s*([^,\]]+)", meta)
+        priority = ""
+        module   = ""
+        feature  = ""
+        if meta:
+            priority_m = re.search(r"Priority:\s*(\w+)", meta)
+            module_m   = re.search(r"Module:\s*([\w/]+)", meta)
+            feature_m  = re.search(r"Feature:\s*([^,\]]+)", meta)
+            if priority_m: priority = priority_m.group(1)
+            if module_m:   module   = module_m.group(1)
+            if feature_m:  feature  = feature_m.group(1).strip()
+            
         results.append({
             "tc_id":    tc_id,
             "suite":    item.get("suite", ""),
-            "module":   module.group(1)   if module   else "",
-            "priority": priority.group(1) if priority else "",
-            "feature":  feature.group(1).strip()  if feature  else "",
+            "module":   module,
+            "priority": priority,
+            "feature":  feature,
             "title":    title.strip(),
             "status":   item.get("status", "UNKNOWN"),
         })
@@ -298,6 +325,18 @@ suite_sheet_names = {
     "Performance Testing Suite":   "⚡ Performance",
     "Accessibility Testing Suite": "♿ Accessibility",
     "UI/UX Testing Suite":         "🎨 UI UX",
+    "Release/Onboarding Suite":    "🚀 Onboarding",
+    "Authentication & Login Suite":"🔑 Login",
+    "OTP Verification Suite":      "💬 OTP Verification",
+    "Merchant Basic Info Suite":   "📝 Merchant Basic",
+    "Merchant Location Suite":     "📍 Merchant Location",
+    "Merchant QR/UPI Suite":       "📲 Merchant QR",
+    "Merchant Dashboard Suite":    "📊 Merchant Dash",
+    "Merchant Payment History Suite": "📜 Merchant Hist",
+    "Edit Merchant Profile Suite":  "✏️ Edit Merchant",
+    "Customer Profile Suite":      "👤 Customer Profile",
+    "Merchant & Workflows Edge, Telemetry & Resilience Suite": "🛡️ Edge Telemetry",
+    "Merchant Onboarding & Workflows Functional Suite": "🤝 Onboarding Func",
 }
 
 cols_suite = ["#", "Test Case ID", "Module", "Priority", "Feature", "Test Description", "Status"]
