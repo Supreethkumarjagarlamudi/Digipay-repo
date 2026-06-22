@@ -16,6 +16,36 @@ JSON_FILE = "reports/json/test_results.json"
 
 # ── 1. Parse tests from log (preferred) or JSON fallback ─────────────────────
 
+def fill_missing_metadata(tc_id, module, priority, feature):
+    """Fill missing metadata (module, priority, feature) based on test case ID prefix."""
+    prefix = tc_id.rsplit("-", 1)[0]
+    prefix_info = {
+        "TC-SMK": {"module": "Smoke Tests", "priority": "High", "feature": "App Launch & Core Workflows"},
+        "TC-FUN": {"module": "Functional Tests", "priority": "High", "feature": "Functional Integrity"},
+        "TC-VAL": {"module": "Validation", "priority": "Medium", "feature": "Form Validations"},
+        "TC-NAV": {"module": "Navigation", "priority": "Low", "feature": "Screen Transitions & Navigation Flow"},
+        "TC-REG": {"module": "Regression", "priority": "High", "feature": "Regression Testing"},
+        "TC-PERF": {"module": "Performance", "priority": "Medium", "feature": "App Load & Form Performance"},
+        "TC-ACC": {"module": "Accessibility", "priority": "Medium", "feature": "Accessibility Labels & Roles"},
+        "TC-UI": {"module": "UI/UX", "priority": "Low", "feature": "Layout & Contrast"},
+        "TC-RLS": {"module": "Authentication", "priority": "High", "feature": "Role Selection Screen"},
+        "TC-LGN": {"module": "Authentication", "priority": "High", "feature": "Login Portal Screen"},
+        "TC-OTP": {"module": "Authentication", "priority": "High", "feature": "OTP Verification Screen"},
+        "TC-MBI": {"module": "Merchant Onboarding", "priority": "High", "feature": "Basic Info Screen"},
+        "TC-MLC": {"module": "Merchant Onboarding", "priority": "High", "feature": "Location & Address Screen"},
+        "TC-MQR": {"module": "Merchant Onboarding", "priority": "High", "feature": "QR Setup & Registration Screen"},
+        "TC-MHD": {"module": "Merchant Dashboard", "priority": "High", "feature": "Dashboard Overview Screen"},
+        "TC-MPH": {"module": "Merchant Dashboard", "priority": "Medium", "feature": "Payment History Statement Screen"},
+        "TC-EMP": {"module": "Merchant Profile", "priority": "Medium", "feature": "Edit Profile Screen"},
+        "TC-CPF": {"module": "Customer Profile", "priority": "Medium", "feature": "Customer Profile & Diagnostics"},
+        "TC-EDG": {"module": "Edge & Resilience", "priority": "Medium", "feature": "Offline Sync, Telemetry & Network Edges"},
+    }
+    info = prefix_info.get(prefix, {"module": "General", "priority": "Medium", "feature": "General"})
+    if not module: module = info["module"]
+    if not priority: priority = info["priority"]
+    if not feature: feature = info["feature"]
+    return module, priority, feature
+
 def parse_from_log(log_path):
     """Extract all pass/fail lines from wdio console log."""
     results = []
@@ -65,6 +95,7 @@ def parse_from_log(log_path):
                 if module_m:   module   = module_m.group(1)
                 if feature_m:  feature  = feature_m.group(1).strip()
 
+            module, priority, feature = fill_missing_metadata(tc_id, module, priority, feature)
             prefix = tc_id.rsplit("-", 1)[0]  # e.g. TC-SMK
             results.append({
                 "tc_id":    tc_id,
@@ -99,6 +130,7 @@ def parse_from_json(json_path):
             if module_m:   module   = module_m.group(1)
             if feature_m:  feature  = feature_m.group(1).strip()
             
+        module, priority, feature = fill_missing_metadata(tc_id, module, priority, feature)
         results.append({
             "tc_id":    tc_id,
             "suite":    item.get("suite", ""),
