@@ -68,7 +68,7 @@ struct HomeView: View {
                     // 5. Nearby Merchants list
                     merchantSection
                 }
-                .padding(.top, 20)
+                .padding(.top, 28)
                 .padding(.bottom, 180)
             }
             .refreshable {

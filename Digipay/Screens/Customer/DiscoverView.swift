@@ -13,6 +13,9 @@ struct DiscoverView: View {
     @State private var searchText = ""
     @State private var selectedCategory = ""
     @State private var selectedMerchant: NearbyMerchant? = nil
+    @FocusState private var isSearchFocused: Bool
+    @State private var sheetHeight: CGFloat = 280
+    @State private var dragOffset: CGFloat = 0
 
     private let categories = ["All", "Cafe", "Restaurant", "Medical", "Grocery", "Electronics"]
 
@@ -88,6 +91,7 @@ struct DiscoverView: View {
                     searchAndFilterHeader
                     Spacer()
                 }
+                .ignoresSafeArea(edges: .top)
 
                 // MARK: BOTTOM PANEL
                 VStack {
@@ -100,6 +104,7 @@ struct DiscoverView: View {
                     }
                 }
             }
+            .ignoresSafeArea(.keyboard)
             .onAppear {
                 locationManager.requestLocation()
             }
@@ -127,6 +132,15 @@ struct DiscoverView: View {
                     }
                 }
             }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        isSearchFocused = false
+                    }
+                    .accessibilityIdentifier("keyboardDoneButton")
+                }
+            }
         }
     }
 }
@@ -135,13 +149,13 @@ struct DiscoverView: View {
 extension DiscoverView {
     private var searchAndFilterHeader: some View {
         VStack(spacing: 12) {
-            // Search Bar
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(AppColors.secondaryText)
                 
                 TextField("Search merchants, categories...", text: $searchText)
                     .tint(AppColors.primaryBlue)
+                    .focused($isSearchFocused)
                 
                 if !searchText.isEmpty {
                     Button {
@@ -151,13 +165,23 @@ extension DiscoverView {
                             .foregroundColor(AppColors.secondaryText)
                     }
                 }
+                
+                if isSearchFocused {
+                    Button("Cancel") {
+                        isSearchFocused = false
+                    }
+                    .foregroundColor(AppColors.primaryBlue)
+                    .font(.system(size: 16, weight: .semibold))
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
             .padding()
             .background(AppColors.cardBackground.opacity(0.95))
             .cornerRadius(18)
             .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
             .padding(.horizontal)
-            .padding(.top, 10)
+            .padding(.top, 60)
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchFocused)
 
             // Category Chips
             ScrollView(.horizontal, showsIndicators: false) {
@@ -258,8 +282,8 @@ extension DiscoverView {
                     Label("Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(AppColors.primaryBlue)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
                         .background(AppColors.primaryBlue.opacity(0.12))
                         .cornerRadius(12)
                 }
@@ -271,8 +295,8 @@ extension DiscoverView {
                     Text("Pay Now")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
                         .background(AppColors.primaryBlue)
                         .cornerRadius(12)
                 }
@@ -302,6 +326,18 @@ extension DiscoverView {
             Capsule()
                 .fill(Color.gray.opacity(0.3))
                 .frame(width: 50, height: 5)
+                .padding(.top, 8)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            dragOffset = -value.translation.height
+                        }
+                        .onEnded { value in
+                            sheetHeight = max(150, min(600, sheetHeight - value.translation.height))
+                            dragOffset = 0
+                        }
+                )
 
             HStack {
                 Text("Nearby Merchants")
@@ -341,11 +377,11 @@ extension DiscoverView {
             }
         }
         .padding()
-        .frame(height: 280)
+        .frame(height: max(150, min(600, sheetHeight + dragOffset)))
         .background(AppColors.primaryBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30))
         .shadow(color: Color.black.opacity(0.1), radius: 10, y: -5)
-        .padding(.bottom, 80)
+        .padding(.bottom, 95)
     }
 
     private func merchantCard(_ merchant: NearbyMerchant) -> some View {

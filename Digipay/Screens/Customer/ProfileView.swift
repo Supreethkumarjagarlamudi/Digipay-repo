@@ -642,7 +642,9 @@ struct UPIAppSelectorView: View {
                     Spacer()
                     Text("Back").hidden()
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 20)
+                .padding(.bottom, 12)
                 .background(AppColors.primaryBackground)
 
                 List {

@@ -431,6 +431,7 @@ extension WalletView {
                         .padding(.leading, 54)
                     }
                     .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(AppColors.cardBackground)
                     .cornerRadius(18)
                     .shadow(color: Color.black.opacity(0.02), radius: 5, y: 3)

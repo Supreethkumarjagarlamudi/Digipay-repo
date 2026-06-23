@@ -20,22 +20,50 @@ CLLocationManagerDelegate {
     @Published var city = ""
     @Published var state = ""
 
+    private var cancellables = Set<AnyCancellable>()
+
     override init() {
-
         super.init()
-
         manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
 
-        manager.desiredAccuracy =
-        kCLLocationAccuracyBest
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .sink { [weak self] _ in
+                self?.applyLocationServicesSetting()
+            }
+            .store(in: &cancellables)
 
-        manager.startUpdatingHeading()
+        applyLocationServicesSetting()
+    }
+
+    private func applyLocationServicesSetting() {
+        let isEnabled = UserDefaults.standard.object(forKey: "locationServicesEnabled") as? Bool ?? true
+        if isEnabled {
+            manager.startUpdatingHeading()
+            if manager.authorizationStatus == .authorizedAlways || manager.authorizationStatus == .authorizedWhenInUse {
+                manager.startUpdatingLocation()
+            }
+        } else {
+            manager.stopUpdatingLocation()
+            manager.stopUpdatingHeading()
+            latitude = 0.0
+            longitude = 0.0
+            heading = 0.0
+            speed = 0.0
+            locationReady = false
+            city = ""
+            state = ""
+        }
     }
 
     func requestLocation() {
-
+        let isEnabled = UserDefaults.standard.object(forKey: "locationServicesEnabled") as? Bool ?? true
+        guard isEnabled else {
+            manager.stopUpdatingLocation()
+            manager.stopUpdatingHeading()
+            return
+        }
         manager.requestWhenInUseAuthorization()
-
         manager.startUpdatingLocation()
     }
 

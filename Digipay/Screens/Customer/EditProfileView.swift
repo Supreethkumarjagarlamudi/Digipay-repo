@@ -155,7 +155,9 @@ extension EditProfileView {
                 .fontWeight(.semibold)
                 .hidden()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .background(AppColors.primaryBackground)
     }
     

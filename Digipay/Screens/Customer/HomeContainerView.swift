@@ -11,7 +11,7 @@ struct HomeContainerView: View {
 
         NavigationStack {
 
-            ZStack {
+            ZStack(alignment: .bottom) {
 
                 AppColors.primaryBackground
                     .ignoresSafeArea()
@@ -34,22 +34,15 @@ struct HomeContainerView: View {
                     }
                 }
 
-                .overlay(
+                FloatingTabBar(
 
-                    alignment: .bottom
+                    selectedTab:
 
-                ) {
+                    $selectedTab
 
-                    FloatingTabBar(
-
-                        selectedTab:
-
-                        $selectedTab
-
-                    )
-
-                }
+                )
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
     }
 }

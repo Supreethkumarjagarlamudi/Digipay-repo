@@ -5,12 +5,9 @@ import UserNotifications
 // MARK: - PRIVACY & SECURITY
 
 struct PrivacySecurityView: View {
-    @AppStorage("biometricLoginEnabled") private var biometricLogin = false
     @AppStorage("locationServicesEnabled") private var locationServices = true
     @AppStorage("endToEndEncryptionEnabled") private var endToEndEncryption = true
     
-    @State private var showBiometricError = false
-    @State private var biometricErrorMessage = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -31,7 +28,6 @@ struct PrivacySecurityView: View {
                                 .padding(.horizontal)
                             
                             VStack(spacing: 1) {
-                                ToggleRow(icon: "faceid", title: "Biometric Login (Face ID)", isEnabled: $biometricLogin)
                                 ToggleRow(icon: "location.fill", title: "Contextual Location Services", isEnabled: $locationServices)
                                 ToggleRow(icon: "lock.shield.fill", title: "End-to-End Encryption", isEnabled: $endToEndEncryption)
                             }
@@ -63,39 +59,6 @@ struct PrivacySecurityView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
-        .alert("Biometric Security Error", isPresented: $showBiometricError) {
-            Button("OK") {}
-        } message: {
-            Text(biometricErrorMessage)
-        }
-        .onChange(of: biometricLogin) { _, enabled in
-            if enabled {
-                let context = LAContext()
-                var error: NSError?
-                
-                if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-                    context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Confirm authentication to enable biometric security for DIGIPAY") { success, authError in
-                        DispatchQueue.main.async {
-                            if success {
-                                print("Biometrics enabled successfully")
-                            } else {
-                                biometricLogin = false
-                                if let err = authError {
-                                    biometricErrorMessage = err.localizedDescription
-                                    showBiometricError = true
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    DispatchQueue.main.async {
-                        biometricLogin = false
-                        biometricErrorMessage = error?.localizedDescription ?? "Face ID/Touch ID is not supported or configured on this device."
-                        showBiometricError = true
-                    }
-                }
-            }
-        }
     }
     
     private func customNavBar(title: String) -> some View {
@@ -119,7 +82,9 @@ struct PrivacySecurityView: View {
             Spacer()
             Text("Back").hidden()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .background(AppColors.primaryBackground)
     }
 }
@@ -230,7 +195,9 @@ struct NotificationsSubView: View {
             Spacer()
             Text("Back").hidden()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .background(AppColors.primaryBackground)
     }
 }
@@ -341,7 +308,9 @@ struct HelpSupportView: View {
             Spacer()
             Text("Back").hidden()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .background(AppColors.primaryBackground)
     }
 }
@@ -491,7 +460,9 @@ struct ContactUsView: View {
             Spacer()
             Text("Back").hidden()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .background(AppColors.primaryBackground)
     }
 }
@@ -557,7 +528,9 @@ struct GenericInfoView: View {
             Spacer()
             Text("Back").hidden()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .background(AppColors.primaryBackground)
     }
 }
@@ -735,7 +708,9 @@ struct SystemDiagnosticsView: View {
             Spacer()
             Text("Back").hidden()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .background(AppColors.primaryBackground)
     }
 }
